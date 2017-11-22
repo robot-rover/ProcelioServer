@@ -27,7 +27,7 @@ public class SparkServer {
     }
 
     public void start(){
-        secure("sovietbot.xyz.jks", ProcelioServer.keystorePass, null, null);
+        //secure("sovietbot.xyz.jks", ProcelioServer.keystorePass, null, null);
         port(port);
         before((req, res) -> res.type("application/json"));
         before((req, res) -> LOG.info("Request at {}\n{}\n{} ", req.pathInfo(), req.headers().stream().collect(Collectors.joining("\n")), req.body()));
