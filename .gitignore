@@ -1,5 +1,9 @@
 # Project Files
 procelio.db
+.idea
+arc
+gradle
+src/test/resources
 
 # Created by .ignore support plugin (hsz.mobi)
 ### Gradle template
