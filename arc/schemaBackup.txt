@@ -1,4 +1,4 @@
-sqlite3 procelio.db "
+sqlite3 ../procelio.db "
 CREATE TABLE authtable(
 ID INTEGER PRIMARY KEY NOT NULL,
 TOKEN TEXT UNIQUE NOT NULL,
