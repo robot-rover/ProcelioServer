@@ -28,9 +28,12 @@ public class SparkServer {
 
     public void start(){
         //secure("sovietbot.xyz.jks", ProcelioServer.keystorePass, null, null);
+        if(ProcelioServer.useSsl){
+            secure(ProcelioServer.sslKeystore, ProcelioServer.keystorePass, null, null);
+        }
         port(port);
         before((req, res) -> res.type("application/json"));
-        before((req, res) -> LOG.info("Request at {}\n{}\n{} ", req.pathInfo(), req.headers().stream().collect(Collectors.joining("\n")), req.body()));
+        before((req, res) -> LOG.info("Request at {}\n{}\n{} ", req.pathInfo(), req.headers().stream().map(v -> v + ": " + req.headers(v)).collect(Collectors.joining("\n")), req.body()));
         get("/status", this::status);
         post("/users", wrapper::createUser);
         post("/login", wrapper::login);

@@ -32,7 +32,7 @@ public class Database {
             throw new RuntimeException("Can't load SQLite driver", ex);
         }
         try {
-            Connection conn = DriverManager.getConnection("jdbc:sqlite:procelio.db");
+            Connection conn = DriverManager.getConnection("jdbc:sqlite:" + ProcelioServer.databasePath);
             context = DSL.using(conn, SQLDialect.SQLITE);
             //todo: uncomment
             // context.truncate(AUTHTABLE).execute();

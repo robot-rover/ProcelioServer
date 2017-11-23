@@ -3,6 +3,7 @@ procelio.db
 .idea
 gradle
 src/test/resources
+*.jks
 
 # Ignore Builds
 *.jar
