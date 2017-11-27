@@ -32,10 +32,11 @@ import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Random;
 
+import static procul.studios.ProcelioServer.gson;
+
 public class DatabaseWrapper {
     private static Logger LOG = LoggerFactory.getLogger(DatabaseWrapper.class);
     DSLContext context;
-    final Gson gson;
     //String authFailed;
     Random rn;
     final long startingCurrency = 200;
@@ -54,10 +55,20 @@ public class DatabaseWrapper {
         rn = new Random();
     }
 
+    public String getServer(Request req, Response res){
+        int id;
+        try {
+            id = authenticate(req, res);
+        } catch (RestException e) {
+            return e.getMessage();
+        }
+        return gson.toJson(ProcelioServer.serverStatus);
+    }
+
     public int authenticate(Request req, Response res) throws RestException {
         String token = req.headers("Authorization");
         if(token == null)
-            throw new RestException(exception(req, res, "Missing authroriztion header", 401));
+            throw new RestException(exception(req, res, "Missing authorization header", 401));
         if(!token.startsWith("Bearer "))
             throw new RestException(exception(req, res, "Missing bearer statement from Authorization header", 401));
         token = token.substring("Bearer ".length());

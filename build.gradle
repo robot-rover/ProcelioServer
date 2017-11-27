@@ -16,6 +16,9 @@ dependencies {
     //HTTP Server
     compile group: 'com.sparkjava', name: 'spark-core', version: '2.5.4'
 
+    //Making HTTP Requests
+    compile group: 'com.mashape.unirest', name: 'unirest-java', version: '1.4.9'
+
     //Logging
     compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
 

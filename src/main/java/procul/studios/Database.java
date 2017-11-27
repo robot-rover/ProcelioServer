@@ -19,20 +19,16 @@ public class Database {
 
     static {System.setProperty("org.jooq.no-logo", "true");}
 
-    public static void main(String[] args){
-        new Database();
-    }
-
     DSLContext context;
 
-    public Database() {
+    public Database(Configuration config) {
         try {
             Class.forName("org.sqlite.JDBC");
         } catch (ClassNotFoundException ex) {
             throw new RuntimeException("Can't load SQLite driver", ex);
         }
         try {
-            Connection conn = DriverManager.getConnection("jdbc:sqlite:" + ProcelioServer.databasePath);
+            Connection conn = DriverManager.getConnection("jdbc:sqlite:" + config.databasePath);
             context = DSL.using(conn, SQLDialect.SQLITE);
             //todo: uncomment
             // context.truncate(AUTHTABLE).execute();
