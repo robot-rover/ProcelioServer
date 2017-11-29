@@ -2,6 +2,7 @@ package procul.studios;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.annotations.Expose;
 import com.sun.istack.internal.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,17 +16,24 @@ public class Configuration {
     //not really secure, just a bit of extra obfuscation
     //if someone has access to the server filesystem you have bigger problems
     public String keystorePassB64;
+    public String url;
     public String keystorePath;
     public int port;
     public String[] serverLocation;
     public String databasePath;
     public String serverKeyB64;
+    public String partConfigPath;
+    //In Seconds
+    public int timeout;
+    @Expose(serialize = false, deserialize = false)
+    public PartConfiguration partConfig;
 
     //use own gson for pretty printing
     static Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private static Logger LOG = LoggerFactory.getLogger(Configuration.class);
 
     public Configuration() {
+        partConfigPath = "";
         keystorePassB64 = null;
         keystorePath = null;
         databasePath = "";
@@ -59,13 +67,5 @@ public class Configuration {
             config = new Configuration();
         }
         return config;
-    }
-
-    public static void saveConfiguration(File file, Configuration config) {
-        try (FileWriter writer = new FileWriter(file, false)) {
-            gson.toJson(config, writer);
-        } catch (IOException e) {
-            LOG.error("Unable to save Configuration at " + file.getAbsolutePath(), e);
-        }
     }
 }

@@ -1,7 +1,7 @@
 package procul.studios;
 
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import org.jooq.*;
 import org.mindrot.jbcrypt.BCrypt;
 import org.slf4j.Logger;
@@ -11,9 +11,9 @@ import procul.studios.pojo.Part;
 import procul.studios.pojo.Robot;
 import procul.studios.pojo.request.Authenticate;
 
-import static procul.studios.ProcelioServer.url;
 import static procul.studios.sqlbindings.Tables.*;
 
+import procul.studios.pojo.response.Inventory;
 import procul.studios.pojo.response.Message;
 import procul.studios.pojo.response.Token;
 import procul.studios.pojo.response.User;
@@ -30,29 +30,30 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+import static procul.studios.exception.RestException.exception;
 import static procul.studios.ProcelioServer.gson;
+import static procul.studios.ProcelioServer.rn;
 
-public class DatabaseWrapper {
-    private static Logger LOG = LoggerFactory.getLogger(DatabaseWrapper.class);
+public class ClientEndpoints {
+    private static Logger LOG = LoggerFactory.getLogger(ClientEndpoints.class);
     DSLContext context;
+    Configuration config;
+    AtomicDatabase atomicDatabase;
     //String authFailed;
-    Random rn;
-    final long startingCurrency = 200;
     final int imageDim = 128;
-    final Part[] defaultInventory = {new Part("testBlock", 100)};
-    final Robot[] defaultRobots = {
-            new Robot(new PartTuple[]{
-                    new PartTuple("testBlock", new int[]{0, 0, 0, 0, 0, 0}),
-                    new PartTuple("testWheel", new int[]{0, 1, 0, 0, 0, 0})
-            })
-    };
 
-    public DatabaseWrapper(DSLContext context) {
+    public ClientEndpoints(DSLContext context, Configuration config, AtomicDatabase atomicDatabase) {
         this.context = context;
         gson = new GsonBuilder().create();
-        rn = new Random();
+        this.config = config;
+        this.atomicDatabase = atomicDatabase;
     }
 
     public String getServer(Request req, Response res){
@@ -65,18 +66,77 @@ public class DatabaseWrapper {
         return gson.toJson(ProcelioServer.serverStatus);
     }
 
+    public String blockTransaction(Request req, Response res){
+        int id;
+        try {
+            id = authenticate(req, res);
+        } catch (RestException e) {
+            return e.getMessage();
+        }
+        final Part[] purchased = gson.fromJson(req.body(), Part[].class);
+        long costIter = 0;
+        for(Part part : purchased){
+            Part partType = config.partConfig.getPart(part.partID);
+            if(partType == null){
+                LOG.warn("{}: tried to buy nonexistant part {}", req.attribute("requestID"), part.partID);
+                continue;
+            }
+            if(part.quantity == null){
+                LOG.warn("{}: didn't initalize part.quantity to buy part {}. Buying 1", req.attribute("requestID"), part.partID);
+                part.quantity = 1;
+            }
+            costIter += partType.cost * part.quantity;
+        }
+        final long cost = costIter;
+        Future<Util.GsonTuple> waitFor = atomicDatabase.addOperation((DSLContext context) -> {
+            Record1<Long> currRecord = context.select(USERTABLE.CURRENCY).from(USERTABLE).where(USERTABLE.ID.eq(id)).fetchAny();
+            if(currRecord == null){
+                LOG.warn("{}: BlockTransaction proceeded to SQL stage but unable to find user with id {}", req.attribute("requestID"), id);
+                return new Util.GsonTuple(new Message("Something went wrong with our database", 500), Message.class);
+            }
+            long userCurrency = currRecord.component1();
+            if(userCurrency < cost)
+                return new Util.GsonTuple(new Message("You need " + (cost - userCurrency) + " more credits to do this!", 400), Message.class);
+            userCurrency -= cost;
+            String inventoryJson = context.select(USERTABLE.INVENTORY).from(USERTABLE).where(USERTABLE.ID.eq(id)).fetchAny().component1();
+            List<Part> inventory = gson.fromJson(inventoryJson, new TypeToken<List<Part>>(){}.getType());
+            for(Part purchase : purchased){
+                Part reference = Util.findEqualOrInsert(inventory, purchase, () -> new Part(purchase.partID, 0));
+                if(reference.quantity + purchase.quantity < 0)
+                    return new Util.GsonTuple(new Message("Tried to sell " + -purchase.quantity + " " + purchase.partID + " and you only have " + reference.quantity, 400), Message.class);
+                reference.quantity += purchase.quantity;
+            }
+            context.update(USERTABLE).set(USERTABLE.INVENTORY, gson.toJson(inventory)).set(USERTABLE.CURRENCY, userCurrency).where(USERTABLE.ID.eq(id)).execute();
+            Inventory response = new Inventory();
+            response.currency = userCurrency;
+            response.parts = inventory.toArray(new Part[inventory.size()]);
+            return new Util.GsonTuple(response, Inventory.class);
+        });
+        Util.GsonTuple result;
+        try {
+            result = waitFor.get(config.timeout, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOG.error("{}: Error waiting for atomic server", req.attribute("requestID"), e);
+            return exception(req, res, "Internal Server Error", 500);
+        } catch (TimeoutException e) {
+            LOG.error("{}: Timeout waiting for atomic server", req.attribute("requestID"), e);
+            return exception(req, res, "The server is under heavy load right now", 500);
+        }
+        return result.serialize(gson);
+    }
+
     public int authenticate(Request req, Response res) throws RestException {
         String token = req.headers("Authorization");
         if(token == null)
-            throw new RestException(exception(req, res, "Missing authorization header", 401));
+            throw new RestException(req, res, "Missing authorization header", 401);
         if(!token.startsWith("Bearer "))
-            throw new RestException(exception(req, res, "Missing bearer statement from Authorization header", 401));
+            throw new RestException(req, res, "Missing bearer statement from Authorization header", 401);
         token = token.substring("Bearer ".length());
         Record2<Integer, Long> record = context.select(AUTHTABLE.USERID, AUTHTABLE.EXPIRES).from(AUTHTABLE).where(AUTHTABLE.TOKEN.eq(token)).fetchAny();
         if(record == null)
-            throw new RestException(exception(req, res, "Token is missing or malformed", 401));
+            throw new RestException(req, res, "Token is missing or malformed", 401);
         if(record.component2() < Instant.now().getEpochSecond())
-            throw new RestException(exception(req, res, "Your access token has expired", 401));
+            throw new RestException(req, res, "Your access token has expired", 401);
         res.header("X-Token-Expires-At", String.valueOf(record.component2()));
         return record.component1();
     }
@@ -118,12 +178,12 @@ public class DatabaseWrapper {
         try {
             ImageIO.write(resized, "png", out);
         } catch (IOException e) {
-            LOG.error("Unable to write image to stream", e);
+            LOG.error("{}: Unable to write image to stream", req.attribute("requestID"), e);
             return exception(req, res, "Server Error", 500);
         }
         context.update(USERTABLE).set(USERTABLE.AVATAR, out.toByteArray()).where(USERTABLE.ID.eq(id)).execute();
         User user = new User();
-        user.avatar = url + "/avatars/" + String.valueOf(id);
+        user.avatar = config.url + "/avatars/" + String.valueOf(id);
         user.id = id;
         return gson.toJson(user);
     }
@@ -159,7 +219,7 @@ public class DatabaseWrapper {
         user.userTypeField = record.component4();
         user.xp = record.component5();
         if(record.component8() != null && record.component8().length > 0){
-            user.avatar = url + "/avatars/" + String.valueOf(targetUser);
+            user.avatar = config.url + "/avatars/" + String.valueOf(targetUser);
         } else {
             user.avatar = "";
         }
@@ -195,16 +255,10 @@ public class DatabaseWrapper {
             raw.getOutputStream().close();
 
         } catch (IOException e) {
-            LOG.error("Error writing avatar image to stream", e);
+            LOG.error("{}: Error writing avatar image to stream", req.attribute("requestID"), e);
             return exception(req, res, "Internal Server Error", 500);
         }
         return res.raw();
-    }
-
-    public String exception(Request req, Response res, String message, int code) {
-        res.status(code);
-        return gson.toJson(new Message("Code " + String.valueOf(code) + ": " + message));
-
     }
 
     public String createUser(Request req, Response res) {
@@ -219,9 +273,9 @@ public class DatabaseWrapper {
         }
         String hashed = BCrypt.hashpw(auth.password, BCrypt.gensalt());
         clearString(auth.password);
-        context.insertInto(USERTABLE).set(USERTABLE.CURRENCY, startingCurrency).set(USERTABLE.USERNAME, auth.username).set(USERTABLE.PASSWORDHASH, hashed)
-                .set(USERTABLE.XP, 0).set(USERTABLE.INVENTORY, gson.toJson(defaultInventory)).set(USERTABLE.LASTLOGIN, Instant.now().getEpochSecond())
-                .set(USERTABLE.USERTYPEFIELD, 0).set(USERTABLE.ROBOTS, gson.toJson(defaultRobots)).execute();
+        context.insertInto(USERTABLE).set(USERTABLE.CURRENCY, config.partConfig.startingCurrency).set(USERTABLE.USERNAME, auth.username).set(USERTABLE.PASSWORDHASH, hashed)
+                .set(USERTABLE.XP, 0).set(USERTABLE.INVENTORY, gson.toJson(config.partConfig.defaultInventory)).set(USERTABLE.LASTLOGIN, Instant.now().getEpochSecond())
+                .set(USERTABLE.USERTYPEFIELD, 0).set(USERTABLE.ROBOTS, gson.toJson(config.partConfig.startingRobots)).execute();
         clearString(auth.password);
         return gson.toJson(new Message("User created successfully"));
     }

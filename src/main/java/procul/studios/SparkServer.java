@@ -2,6 +2,7 @@ package procul.studios;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import procul.studios.exception.RestException;
 import procul.studios.pojo.response.Message;
 import spark.Request;
 import spark.Response;
@@ -19,11 +20,13 @@ import static procul.studios.ProcelioServer.gson;
 public class SparkServer {
     static final Logger LOG = LoggerFactory.getLogger(SparkServer.class);
     boolean isIgnited;
-    DatabaseWrapper wrapper;
+    ClientEndpoints client;
+    ServerEndpoints server;
     Configuration config;
-    public SparkServer(Configuration config, DatabaseWrapper wrapper){
+    public SparkServer(Configuration config, ClientEndpoints client, ServerEndpoints server){
         isIgnited = false;
-        this.wrapper = wrapper;
+        this.client = client;
+        this.server = server;
         this.config = config;
     }
 
@@ -34,15 +37,22 @@ public class SparkServer {
         }
         port(config.port);
         before((req, res) -> res.type("application/json"));
-        before((req, res) -> LOG.info("Request at {}\n{}\n{} ", req.pathInfo(), req.headers().stream().map(v -> v + ": " + req.headers(v)).collect(Collectors.joining("\n")), req.body()));
+        before((req, res) -> req.attribute("requestID", (req.headers("Authorization")!=null ? req.headers("Authorization").replace("Bearer ", "") : "NoAuth") + ";" + System.currentTimeMillis() + "IP" + req.ip() + req.pathInfo()));
+        before((req, res) -> LOG.debug("RequestID `{}`\n{}\n{} ", req.attribute("requestID"), req.headers().stream().map(v -> v + ": " + req.headers(v)).collect(Collectors.joining("\n")), req.body()));
+        //Client Endpoints
         get("/status", this::status);
-        post("/users", wrapper::createUser);
-        post("/login", wrapper::login);
-        get("/users/:user", wrapper::getUser);
-        get("/avatars/:user", wrapper::getAvatar);
-        post("/avatars", wrapper::setAvatar);
+        post("/users", client::createUser);
+        post("/login", client::login);
+        get("/users/:user", client::getUser);
+        get("/avatars/:user", client::getAvatar);
+        post("/avatars", client::setAvatar);
 
-        notFound((req, res) -> wrapper.exception(req, res, "Route not found", 404));
+        //Server Endpoints
+        get("/validate", server::validateToken);
+        post("/reward", server::addCurrency);
+
+
+        notFound((req, res) -> RestException.exception(req, res, "Route not found", 404));
         exception(Exception.class, (Exception e, Request req, Response res) -> LOG.error("Exception in Spark Thread", e));
         init();
         isIgnited = true;

@@ -4,6 +4,8 @@ procelio.db
 gradle
 src/test/resources
 *.jks
+config.json
+debug.log
 
 # Ignore Builds
 *.jar

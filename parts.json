@@ -1,0 +1,34 @@
+{
+  "allParts": [
+    {
+      "partID": "testBlock",
+      "cost": 50
+    },
+    {
+      "partID": "testWheel",
+      "cost": 200
+    }
+  ],
+  "defaultInventory": [
+    {
+      "partID": "testBlock",
+      "quantity": 50
+    }
+  ],
+  "startingRobots": [
+    {
+      "name": "Starter Robot 1",
+      "partList": [
+        {
+          "partID": "testBlock",
+          "transform": [0, 0, 0, 0, 0, 0]
+        },
+        {
+          "partID": "testWheel",
+          "transform": [0, 1, 0, 0, 0, 0]
+        }
+      ]
+    }
+  ],
+  "startingCurrency": 500
+}
