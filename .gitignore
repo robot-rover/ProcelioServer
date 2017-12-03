@@ -6,6 +6,7 @@ src/test/resources
 *.jks
 config.json
 debug.log
+gameBuilds
 
 # Ignore Builds
 *.jar

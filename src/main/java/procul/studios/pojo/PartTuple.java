@@ -1,11 +1,12 @@
-package procul.studios;
+package procul.studios.pojo;
 
-public class PartTuple {
-    String partID;
+import procul.studios.pojo.Part;
+
+public class PartTuple extends Part {
     // Vector(X, Y, Z) then EulerRotation(X, Y, Z)
-    int[] transform;
+    public int[] transform;
     public PartTuple(String partID, int[] positionAndRotation){
-        this.partID = partID;
+        super(partID);
         if(positionAndRotation.length != 6)
             throw new ArrayIndexOutOfBoundsException("Transform array must have 6 elements!");
         this.transform = positionAndRotation;

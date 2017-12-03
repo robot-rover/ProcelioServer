@@ -4,6 +4,7 @@ import org.jooq.DSLContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -33,7 +34,13 @@ public class AtomicDatabase {
                 LOG.warn("Atomic Database queue processor interrupted", e);
                 continue;
             }
-            task.run();
+            try {
+                task.run();
+            } catch (Exception e){
+                LOG.error("Atomic Database process threw error", e);
+                task.cancel(true);
+            }
+
         }
     }
 

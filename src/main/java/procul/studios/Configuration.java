@@ -3,7 +3,6 @@ package procul.studios;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
-import com.sun.istack.internal.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,9 +22,9 @@ public class Configuration {
     public String databasePath;
     public String serverKeyB64;
     public String partConfigPath;
+    public String buildFolderPath;
     //In Seconds
     public int timeout;
-    @Expose(serialize = false, deserialize = false)
     public PartConfiguration partConfig;
 
     //use own gson for pretty printing
@@ -40,15 +39,15 @@ public class Configuration {
         port = 80;
         serverLocation = new String[0];
         serverKeyB64 = "";
+        buildFolderPath = "";
     }
-    @Nullable
+
     public String getKeystorePass(){
         if(keystorePassB64 == null)
             return null;
         return new String(Base64.getDecoder().decode(keystorePassB64), StandardCharsets.UTF_8);
     }
 
-    @Nullable
     public String getServerKey(){
         if(serverKeyB64 == null)
             return null;

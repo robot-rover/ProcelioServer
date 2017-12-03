@@ -9,15 +9,13 @@
       "cost": 200
     }
   ],
-  "defaultInventory": [
-    {
-      "partID": "testBlock",
-      "quantity": 50
-    }
-  ],
+  "defaultInventory": {
+    "testBlock": 50
+  },
   "startingRobots": [
     {
       "name": "Starter Robot 1",
+      "id": 1,
       "partList": [
         {
           "partID": "testBlock",

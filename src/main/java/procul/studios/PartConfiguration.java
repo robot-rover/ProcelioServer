@@ -9,6 +9,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 import static procul.studios.ProcelioServer.gson;
 
@@ -18,9 +20,9 @@ public class PartConfiguration {
     Part[] allParts;
 
     //quantity is a value, cost is null
-    Part[] defaultInventory;
+    Map<String, Integer> defaultInventory;
 
-    Robot[] startingRobots;
+    List<Robot> startingRobots;
 
     long startingCurrency;
 

@@ -5,7 +5,6 @@ import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import procul.studios.exception.RestException;
 import procul.studios.pojo.Server;
 
 import java.io.IOException;
@@ -38,15 +37,15 @@ public class ServerDaemon  extends TimerTask {
             try {
                 HttpResponse<InputStream> response = Unirest.get(serverLocations[i] + "/status").header("Accept", "application/json").asBinary();
                 if(response.getStatus() != 200){
-                    throw new RestException("Server returned status " + String.valueOf(response.getStatus()) + " with body:\n" + response.getBody());
+                    throw new IOException("Server returned status " + String.valueOf(response.getStatus()) + " with body:\n" + response.getBody());
                 }
                 try (InputStreamReader in = new InputStreamReader(response.getBody())) {
                     serverStatus[i] = gson.fromJson(in, Server.class);
                 }
-            } catch (UnirestException | RestException | IOException e) {
+            } catch (UnirestException | IOException e) {
                 //Don't log every check if the server was already offline
                 if(serverStatus[i] == null || serverStatus[i].isOnline){
-                    LOG.warn("Lost connection to server at url `" + serverLocations[i] + "`", e);
+                    LOG.warn("Lost connection to server at url `{}`\n{}", serverLocations[i], e.getMessage());
                 }
                 serverStatus[i] = new Server(serverLocations[i]);
             }
