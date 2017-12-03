@@ -161,7 +161,8 @@ public class DiffManager {
             LOG.info("Hashing " + pathRelativeTo(zipArc.toPath(), zipDir.toPath()));
             currentPack.hash = hashFile(zipArc);
         }
-
+        if(versions.size() == 0)
+            throw new RuntimeException("No Builds to Diff!");
         File newestBuild = new File(buildDir, "build-" + versions.get(versions.size()-1).getFirst());
         if(!newestBuild.exists())
             throw new RuntimeException("Newest build " + newestBuild.getAbsolutePath() + " doesn't exist to be zipped");
