@@ -1,2 +1,4 @@
-rootProject.name = 'ProcelioServer'
-
+rootProject.name = 'Procelio'
+include 'ProcelioServer'
+include 'ProcelioLauncher'
+include ':ProcelioLauncher', ':ProcelioServer'

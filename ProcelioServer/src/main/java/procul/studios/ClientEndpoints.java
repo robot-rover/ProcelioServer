@@ -421,6 +421,8 @@ public class ClientEndpoints {
             String token = new String(Base64.getEncoder().encode(bytes), StandardCharsets.UTF_8);
             int id = databaseHash.component2();
             String ip = req.headers("CF-Connecting-IP");
+            if(ip == null)
+                ip = req.ip();
             long expires = Instant.now().plus(1, ChronoUnit.DAYS).getEpochSecond();
             context.deleteFrom(AUTHTABLE).where(AUTHTABLE.USERID.eq(id)).execute();
             context.insertInto(AUTHTABLE).set(AUTHTABLE.USERID, databaseHash.component2()).set(AUTHTABLE.CLIENTIP, ip).set(AUTHTABLE.EXPIRES, expires).set(AUTHTABLE.TOKEN, token).execute();

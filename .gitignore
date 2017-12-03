@@ -2,7 +2,7 @@
 procelio.db
 .idea
 gradle
-src/test/resources
+ProcelioServer/src/test/resources
 *.jks
 config.json
 debug.log

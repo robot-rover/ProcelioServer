@@ -1,0 +1,62 @@
+group 'procul.studios'
+version 'master'
+
+
+apply plugin: 'java'
+
+apply plugin: 'com.github.johnrengelman.shadow'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    //HTTP Server
+    compile group: 'com.sparkjava', name: 'spark-core', version: '2.5.4'
+
+    //Making HTTP Requests
+    compile group: 'com.mashape.unirest', name: 'unirest-java', version: '1.4.9'
+
+    //Logging
+    compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
+
+    //Database access and JDBC Driver
+    compile group: 'org.jooq', name: 'jooq', version: '3.10.1'
+    compile group: 'org.jooq', name: 'jooq-meta', version: '3.10.1'
+    compile group: 'org.jooq', name: 'jooq-codegen', version: '3.10.1'
+    compile group: 'org.xerial', name: 'sqlite-jdbc', version: '3.20.1'
+
+    //JSON Parsing
+    compile group: 'com.google.code.gson', name: 'gson', version: '2.8.2'
+
+    //Hashing Library
+    compile group: 'org.mindrot', name: 'jbcrypt', version: '0.4'
+
+    //Binary Diffing Library
+    compile group: 'io.sigpipe', name:'jbsdiff', version: '1.0'
+
+    //Zip Library
+    compile group: 'net.lingala.zip4j', name: 'zip4j', version: '1.3.2'
+
+
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}
+
+buildscript {
+    repositories { jcenter() }
+    dependencies { classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1' }
+}
+
+shadowJar {
+    baseName = 'ProcelioServer'
+    classifier = null
+    version = null
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'procul.studios.ProcelioServer'
+    }
+}
