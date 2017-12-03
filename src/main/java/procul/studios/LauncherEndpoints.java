@@ -30,6 +30,7 @@ public class LauncherEndpoints {
     }
 
     public Object fullBuild(Request req, Response res){
+        res.header("content-type", "application/zip");
         try {
             OutputStream out = res.raw().getOutputStream();
             InputStream in = new BufferedInputStream(new FileInputStream(differ.getNewestPackage().getFirst()));
@@ -45,6 +46,7 @@ public class LauncherEndpoints {
     }
 
     public Object getPatch(Request req, Response res){
+        res.header("content-type", "application/zip");
         String version = req.params(":patch");
         if(version == null)
             return ex("Missing version in path", 400);
