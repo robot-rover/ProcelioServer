@@ -46,7 +46,7 @@ public class DiffManager {
         params.setCompressionMethod(Zip4jConstants.COMP_DEFLATE);
         params.setCompressionLevel(Zip4jConstants.DEFLATE_LEVEL_NORMAL);
         File diffManagerDir = new File(config.buildFolderPath);
-        if(!diffDir.exists() && !diffDir.mkdir())
+        if(!diffManagerDir.exists() && !diffManagerDir.mkdir())
             throw new RuntimeException("Unable to create Diff Directory");
         diffDir = new File(config.buildFolderPath, "patches");
         if(!diffDir.exists() && !diffDir.mkdir())
