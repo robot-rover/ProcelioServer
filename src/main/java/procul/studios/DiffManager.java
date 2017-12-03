@@ -45,9 +45,12 @@ public class DiffManager {
         hasDiffed = false;
         params.setCompressionMethod(Zip4jConstants.COMP_DEFLATE);
         params.setCompressionLevel(Zip4jConstants.DEFLATE_LEVEL_NORMAL);
-        diffDir = new File(config.buildFolderPath, "patches");
+        File diffManagerDir = new File(config.buildFolderPath);
         if(!diffDir.exists() && !diffDir.mkdir())
             throw new RuntimeException("Unable to create Diff Directory");
+        diffDir = new File(config.buildFolderPath, "patches");
+        if(!diffDir.exists() && !diffDir.mkdir())
+            throw new RuntimeException("Unable to create Patch Directory");
         if(!diffDir.isDirectory())
             throw new RuntimeException("Diff Directory is a File!");
         buildDir = new File(config.buildFolderPath, "builds");
