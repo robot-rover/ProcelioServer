@@ -31,6 +31,7 @@ public class LauncherEndpoints {
 
     public Object fullBuild(Request req, Response res){
         res.header("content-type", "application/zip");
+        res.header("Content-MD5", Base64.getEncoder().encodeToString(differ.getNewestPackage().getSecond()));
         try {
             OutputStream out = res.raw().getOutputStream();
             InputStream in = new BufferedInputStream(new FileInputStream(differ.getNewestPackage().getFirst()));
@@ -41,12 +42,10 @@ public class LauncherEndpoints {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        res.header("Content-MD5", Base64.getEncoder().encodeToString(differ.getNewestPackage().getSecond()));
         return res.raw();
     }
 
     public Object getPatch(Request req, Response res){
-        res.header("content-type", "application/zip");
         String version = req.params(":patch");
         if(version == null)
             return ex("Missing version in path", 400);
@@ -62,6 +61,8 @@ public class LauncherEndpoints {
         Pack pack = differ.getPackages().stream().filter(v -> v.bridge.equals(patchVersion)).findAny().orElse(null);
         if(pack == null)
             return ex("Patch could not be found", 404);
+        res.header("content-type", "application/zip");
+        res.header("X-Content-MD5", Base64.getEncoder().encodeToString(pack.hash));
         try {
             OutputStream out = res.raw().getOutputStream();
             InputStream in = new BufferedInputStream(new FileInputStream(pack.zip));
@@ -72,7 +73,7 @@ public class LauncherEndpoints {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        res.header("Content-MD5", Base64.getEncoder().encodeToString(pack.hash));
+
         return res.raw();
     }
 
@@ -83,16 +84,19 @@ public class LauncherEndpoints {
         String[] version = currentVersionString.split("\\.");
         if (version.length != 3)
             ex("Malformed Version in path", 400);
-        LauncherDownload result = new LauncherDownload("/launcher/build");
-        List<Pack> packages = differ.getPackages();
-        List<Tuple<Version, Version>> neededPackages = new ArrayList<>();
-        Version goal = differ.getNewestVersion();
         Version currentVersion;
         try {
             currentVersion = new Version(version);
         } catch (NumberFormatException e){
             return ex("Malformed Version in path", 400);
         }
+        List<Pack> packages = differ.getPackages();
+        List<Tuple<Version, Version>> neededPackages = new ArrayList<>();
+        Version goal = differ.getNewestVersion();
+        boolean upToDate = currentVersion.equals(goal);
+        LauncherDownload result = new LauncherDownload("/launcher/build", upToDate, config.launcherVersion);
+        if(upToDate)
+            return gson.toJson(result);
         while(currentVersion != goal){
             boolean found = false;
             for(Pack pack : packages){
@@ -110,7 +114,7 @@ public class LauncherEndpoints {
         neededPackages.sort(Comparator.comparing(Tuple::getFirst));
         result.patches = new ArrayList<>();
         for(int i = 0; i < neededPackages.size(); i++){
-            result.patches.add("/launcher/" + neededPackages.get(i).getFirst() + "-" + neededPackages.get(i).getSecond());
+            result.patches.add("/launcher/patch/" + neededPackages.get(i).getFirst() + "-" + neededPackages.get(i).getSecond());
         }
         return gson.toJson(result);
     }

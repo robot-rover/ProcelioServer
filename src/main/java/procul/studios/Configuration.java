@@ -26,6 +26,7 @@ public class Configuration {
     //In Seconds
     public int timeout;
     public PartConfiguration partConfig;
+    public Integer[] launcherVersion;
 
     //use own gson for pretty printing
     static Gson gson = new GsonBuilder().setPrettyPrinting().create();

@@ -202,7 +202,7 @@ public class DiffManager {
             BuildManifest toManifest = gson.fromJson(new InputStreamReader(new FileInputStream(new File(to.getSecond(), "manifest.json"))), BuildManifest.class);
             toManifest.baseDir = to.getSecond();
             if(toManifest.version != null && !new Version(toManifest.version).equals(to.getFirst()))
-                throw new RuntimeException("Filename Version doesn't match manifest version for " + from.getSecond().getAbsolutePath());
+                throw new RuntimeException("Filename Version doesn't match manifest version for " + to.getSecond().getAbsolutePath());
             toManifest.init();
             buildManifest = new Tuple<>(fromManifest, toManifest);
         } catch (FileNotFoundException e){
@@ -211,7 +211,7 @@ public class DiffManager {
         if(diff.exists() && !diff.isDirectory())
             throw new RuntimeException("Cannot create diff " + diff.getAbsolutePath() + " because it already exists as a file");
         if(diff.exists() && diff.isDirectory()){
-            LOG.info("Diff for " + diff.getName() + " is already processed, skipping");
+            LOG.info("Diff " + diff.getName() + " is already processed, skipping");
             return;
         }
         PackageManifest manifest = new PackageManifest(diff, new Tuple<>(from.getFirst(), to.getFirst()));
