@@ -1,0 +1,24 @@
+{
+  "websiteUrl": "https://sites.google.com/bascs.org/procelio/home",
+  "quoteOfTheDay": "Don't be sad it crashed, be happy you have it",
+  "quoteAuthor": "robot_rover",
+  "updates": [
+    {
+      "version": [0,0,0],
+      "description": "testing the launcher thank you very much",
+      "hyperlink": "https://www.google.com",
+      "image": "https://i.stack.imgur.com/MyJ4E.png"
+    },
+    {
+      "version": [0,0,1],
+      "description": "testing the launcher thank you very much, this is really really really really really really really really really really really really really really really really really really long!",
+      "hyperlink": "https://www.sovietbot.xyz",
+      "image": "https://www.sovietbot.xyz/avatar.png"
+    },
+    {
+      "version": [0,0,2],
+      "description": "No image because SCREW YOU",
+      "hyperlink": "https://www.sovietbot.xyz"
+    }
+  ]
+}

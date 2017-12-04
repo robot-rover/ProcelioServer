@@ -61,7 +61,6 @@ public class ClientEndpoints {
     }
 
     public String getServer(Request req, Response res){
-        authenticate(req, res);
         return gson.toJson(ProcelioServer.serverStatus);
     }
 

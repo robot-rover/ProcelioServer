@@ -4,11 +4,14 @@ import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.pojo.Server;
+import procul.studios.pojo.response.LauncherConfiguration;
 import procul.studios.pojo.response.LauncherDownload;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.Random;
 import java.util.Timer;
 
@@ -45,9 +48,13 @@ public class ProcelioServer {
                 } catch (IOException e) {
                     LOG.warn("Unable to initialize config file", e);
                 }
+            } else {
+                LOG.error("Unrecognized Option - {}", args[0]);
             }
             return;
         }
+        if(config.launcherConfig == null)
+            config.launcherConfig = LauncherConfiguration.loadConfiguration(new File(config.launcherConfigPath));
         if(config.partConfig == null)
             config.partConfig = PartConfiguration.loadConfiguration(new File(config.partConfigPath));
         DiffManager differ = new DiffManager(config);
@@ -58,7 +65,11 @@ public class ProcelioServer {
         ServerEndpoints serverWrapper = new ServerEndpoints(database.getContext(), config, atomicDatabase);
         LauncherEndpoints launcherWrapper = new LauncherEndpoints(config, differ);
         serverStatus = new Server[config.serverLocation.length];
-        Timer serverDaemon = ServerDaemon.startDaemon(60000L, new ServerDaemon(config.serverLocation, serverStatus));
+        if(config.serverKeepAlive)
+            ServerDaemon.startDaemon(60000L, new ServerDaemon(config.serverLocation, serverStatus));
+        else for(int i = 0; i < config.serverLocation.length; i++){
+            serverStatus[i] = new Server(config.serverLocation[i]);
+        }
         SparkServer server = new SparkServer(config, clientWrapper, serverWrapper, launcherWrapper);
         server.start();
     }

@@ -13,6 +13,7 @@ public class PackageManifest {
     public Integer[] toVersion;
     public Integer[] fromVersion;
     public List<String> ignore;
+    public String newExec;
 
     @Expose(serialize = false, deserialize = false)
     private transient File baseDir;

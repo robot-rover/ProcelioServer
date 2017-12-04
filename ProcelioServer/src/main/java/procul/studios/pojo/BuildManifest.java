@@ -7,6 +7,7 @@ import java.util.List;
 public class BuildManifest {
     public Integer[] version;
     public List<String> ignore;
+    public String exec;
     public transient File baseDir;
     public void init(){
         if(ignore == null)

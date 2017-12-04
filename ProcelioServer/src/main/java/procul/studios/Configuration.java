@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import procul.studios.pojo.response.LauncherConfiguration;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -14,6 +15,7 @@ public class Configuration {
     //the unicode bytes for the keystore password stored as base64
     //not really secure, just a bit of extra obfuscation
     //if someone has access to the server filesystem you have bigger problems
+    public boolean serverKeepAlive;
     public String keystorePassB64;
     public String url;
     public String keystorePath;
@@ -26,7 +28,12 @@ public class Configuration {
     //In Seconds
     public int timeout;
     public PartConfiguration partConfig;
-    public Integer[] launcherVersion;
+    public LauncherConfiguration launcherConfig;
+    public String launcherConfigPath;
+
+
+    public String iconPath;
+    public String logoPath;
 
     //use own gson for pretty printing
     static Gson gson = new GsonBuilder().setPrettyPrinting().create();

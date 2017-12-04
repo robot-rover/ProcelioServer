@@ -1,6 +1,7 @@
 package procul.studios;
 
 import procul.studios.pojo.response.LauncherDownload;
+import procul.studios.util.FileUtils;
 import procul.studios.util.Pack;
 import procul.studios.util.Tuple;
 import procul.studios.util.Version;
@@ -29,8 +30,42 @@ public class LauncherEndpoints {
         this.differ = differ;
     }
 
+    public String getConfig(Request req, Response res){
+        return gson.toJson(config.launcherConfig);
+    }
+
+    public Object getIcon(Request req, Response res){
+        res.header("Content-Type","image/" + FileUtils.getFileExtension(config.iconPath));
+        try {
+            OutputStream out = res.raw().getOutputStream();
+            InputStream in = new BufferedInputStream(new FileInputStream(config.iconPath));
+            int data;
+            while((data = in.read()) != -1)
+                out.write(data);
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return res.raw();
+    }
+
+    public Object getLogo(Request req, Response res){
+        res.header("Content-Type","image/" + FileUtils.getFileExtension(config.logoPath));
+        try {
+            OutputStream out = res.raw().getOutputStream();
+            InputStream in = new BufferedInputStream(new FileInputStream(config.logoPath));
+            int data;
+            while((data = in.read()) != -1)
+                out.write(data);
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return res.raw();
+    }
+
     public Object fullBuild(Request req, Response res){
-        res.header("content-type", "application/zip");
+        res.header("Content-Type", "application/zip");
         res.header("Content-MD5", Base64.getEncoder().encodeToString(differ.getNewestPackage().getSecond()));
         try {
             OutputStream out = res.raw().getOutputStream();
@@ -61,8 +96,8 @@ public class LauncherEndpoints {
         Pack pack = differ.getPackages().stream().filter(v -> v.bridge.equals(patchVersion)).findAny().orElse(null);
         if(pack == null)
             return ex("Patch could not be found", 404);
-        res.header("content-type", "application/zip");
-        res.header("X-Content-MD5", Base64.getEncoder().encodeToString(pack.hash));
+        res.header("Content-Type", "application/zip");
+        res.header("Content-MD5", Base64.getEncoder().encodeToString(pack.hash));
         try {
             OutputStream out = res.raw().getOutputStream();
             InputStream in = new BufferedInputStream(new FileInputStream(pack.zip));
@@ -80,7 +115,7 @@ public class LauncherEndpoints {
     public String getPatchList(Request req, Response res) {
         String currentVersionString = req.params(":patch");
         if (currentVersionString == null)
-            return ex("Missing Version in path", 400);
+            return gson.toJson(new LauncherDownload("/launcher/build", false, config.launcherConfig.launcherVersion));
         String[] version = currentVersionString.split("\\.");
         if (version.length != 3)
             ex("Malformed Version in path", 400);
@@ -94,7 +129,7 @@ public class LauncherEndpoints {
         List<Tuple<Version, Version>> neededPackages = new ArrayList<>();
         Version goal = differ.getNewestVersion();
         boolean upToDate = currentVersion.equals(goal);
-        LauncherDownload result = new LauncherDownload("/launcher/build", upToDate, config.launcherVersion);
+        LauncherDownload result = new LauncherDownload("/launcher/build", upToDate, config.launcherConfig.launcherVersion);
         if(upToDate)
             return gson.toJson(result);
         while(currentVersion != goal){
