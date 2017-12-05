@@ -56,7 +56,7 @@ import static procul.studios.EndpointWrapper.gson;
 public class ProcelioLauncher extends Application {
 
     private static final Logger LOG = LoggerFactory.getLogger(ProcelioLauncher.class);
-    public static final Version launcherVersion = new Version(0,0,0);
+    public static final Version launcherVersion = new Version(0, 0, 0);
     public static final String backendEndpoint = /*"https://api.sovietbot.xyz"*/ "http://localhost";
     public File gameDir = new File("ProcelioGame");
 
@@ -123,7 +123,7 @@ public class ProcelioLauncher extends Application {
         updateArea.setPadding(new Insets(10));
         updateArea.setSpacing(10);
         List<LauncherConfiguration.Update> updates = wrapper.getConfig().updates;
-        StackPane lineHolder = new StackPane(new Line(0,0,50,0));
+        StackPane lineHolder = new StackPane(new Line(0, 0, 50, 0));
         lineHolder.setAlignment(Pos.CENTER);
         updateArea.getChildren().add(lineHolder);
         /*for(LauncherConfiguration.Update update : updates){
@@ -169,11 +169,11 @@ public class ProcelioLauncher extends Application {
         primaryStage.show();
     }
 
-    public void openBrowser(String url){
+    public void openBrowser(String url) {
         try {
-            if(System.getProperty("os.name", "generic").toLowerCase(Locale.ENGLISH).contains("nux")){
-                Runtime.getRuntime().exec(new String[] { "xdg-open", url});
-            } else if(Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)){
+            if (System.getProperty("os.name", "generic").toLowerCase(Locale.ENGLISH).contains("nux")) {
+                Runtime.getRuntime().exec(new String[]{"xdg-open", url});
+            } else if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
                 LOG.info("Opening " + url);
                 Desktop.getDesktop().browse(new URI(url));
             } else {
@@ -187,12 +187,12 @@ public class ProcelioLauncher extends Application {
     public void launch(ActionEvent e) {
         try {
             boolean isReady = false;
-            if(!gameDir.exists()){
+            if (!gameDir.exists()) {
                 freshBuild();
                 isReady = true;
             }
             BuildManifest manifest = EndpointWrapper.gson.fromJson(new InputStreamReader(new FileInputStream(new File(gameDir, "manifest.json"))), BuildManifest.class);
-            if(!isReady)
+            if (!isReady)
                 updateBuild(manifest);
             launchFile(new File(gameDir, manifest.exec));
         } catch (UnirestException | IOException e1) {
@@ -202,17 +202,17 @@ public class ProcelioLauncher extends Application {
 
     public void updateBuild(BuildManifest manifest) throws UnirestException, IOException {
         LauncherDownload download = wrapper.checkForUpdates(new Version(manifest.version));
-        if(download.upToDate){
+        if (download.upToDate) {
             LOG.info("All up to date");
             return;
         }
-        if(download.patches == null){
+        if (download.patches == null) {
             freshBuild();
             return;
         }
         LOG.info("Patching Build");
-        for(String patch : download.patches){
-            InputStream hashes = wrapper.getFile(backendEndpoint + patch);
+        for (String patch : download.patches) {
+            InputStream hashes = wrapper.getInputStream(backendEndpoint + patch);
             //savePatch(hashes, manifest);
             //LOG.info("Server: {} -> Client: {}", hashes.getSecond().getFirst(), DatatypeConverter.printHexBinary(hashes.getSecond().getSecond().digest()));
             //System.exit(0);
@@ -229,48 +229,49 @@ public class ProcelioLauncher extends Application {
     public void applyPatch(InputStream patch, BuildManifest manifest) throws IOException {
         byte[] buffer = new byte[1024];
         PackageManifest packageManifest;
-        try (ZipInputStream zipStream = new ZipInputStream(patch)){
+        try (ZipInputStream zipStream = new ZipInputStream(patch)) {
             ZipEntry entry = zipStream.getNextEntry();
-            if(!entry.getName().equals("manifest.json"))
+            if (!entry.getName().equals("manifest.json"))
                 throw new RuntimeException("manifest.json must be the first zip entry");
-                try (ByteArrayOutputStream manifestData = new ByteArrayOutputStream()) {
-                    readEntry(zipStream, buffer, manifestData);
-                    packageManifest = gson.fromJson(new String(manifestData.toByteArray()), PackageManifest.class);
-                    if(packageManifest.delete == null)
-                        packageManifest.delete = new ArrayList<>();
-                }
-                LOG.info("Applying patch " + Arrays.toString(packageManifest.fromVersion) + " -> " + Arrays.toString(packageManifest.toVersion));
-                while ((entry = zipStream.getNextEntry()) != null) {
+            try (ByteArrayOutputStream manifestData = new ByteArrayOutputStream()) {
+                readEntry(zipStream, buffer, manifestData);
+                packageManifest = gson.fromJson(new String(manifestData.toByteArray()), PackageManifest.class);
+                if (packageManifest.delete == null)
+                    packageManifest.delete = new ArrayList<>();
+            }
+            LOG.info("Applying patch " + Arrays.toString(packageManifest.fromVersion) + " -> " + Arrays.toString(packageManifest.toVersion));
+            while ((entry = zipStream.getNextEntry()) != null) {
                 String fileName = entry.getName();
-                if(FileUtils.getFileExtension(fileName).equals("patch")){
+                if (fileName == null) {
+                    LOG.warn("Null Entry Name");
+                    continue;
+                }
+                if (FileUtils.getFileExtension(fileName).equals("patch")) {
                     String gameDirFile = fileName.substring(0, fileName.length() - ".patch".length());
                     File toPatch = new File(gameDir, gameDirFile);
-                    if(!toPatch.exists()){
+                    if (!toPatch.exists()) {
                         LOG.warn("File is missing {}", toPatch.getAbsolutePath());
                         continue;
                     }
                     byte[] oldBytes = Files.readAllBytes(gameDir.toPath().resolve(gameDirFile));
-                    byte[] assertPatchBytes = Files.readAllBytes(Paths.get("ProcelioServer/gameBuilds/patches/diff-" + new Version(packageManifest.fromVersion) + "-" + new Version(packageManifest.toVersion) + "/").resolve(fileName));
+                    //byte[] assertPatchBytes = Files.readAllBytes(Paths.get("ProcelioServer/gameBuilds/patches/diff-" + new Version(packageManifest.fromVersion) + "-" + new Version(packageManifest.toVersion) + "/").resolve(fileName));
                     try (ByteArrayOutputStream patchStream = new ByteArrayOutputStream()) {
                         readEntry(zipStream, buffer, patchStream);
-                        OutputStream patchedOut = new BufferedOutputStream(new FileOutputStream(toPatch, false));
-                        if(Arrays.equals(assertPatchBytes, patchStream.toByteArray()))
-                            LOG.info("Is {} read correctly? {}", fileName, String.valueOf(false));
+                        OutputStream patchedOut = new FileOutputStream(toPatch, false);
                         Patch.patch(oldBytes, patchStream.toByteArray(), patchedOut);
-                        if(toPatch.length() == 0){
-                            LOG.warn("File {} is now 0 bytes long", toPatch.getAbsolutePath());
+                        if (toPatch.length() == 0) {
+                            LOG.warn("File {} is now 0 bytes long: {}", toPatch.getAbsolutePath(), fileName);
                         }
                     } catch (InvalidHeaderException | CompressorException e) {
                         LOG.error("Patch Error", e);
                     }
                 } else {
-                    if(packageManifest.delete.contains(fileName)){
+                    if (packageManifest.delete.contains(fileName)) {
                         LOG.info("Ignoring {}", fileName);
                     }
-                    LOG.info("Creating {}", fileName);
                     File newFile = new File(gameDir, fileName);
                     new File(newFile.getParent()).mkdirs();
-                    if(newFile.isDirectory())
+                    if (entry.isDirectory())
                         continue;
                     try (OutputStream out = new FileOutputStream(newFile)) {
                         readEntry(zipStream, buffer, out);
@@ -282,12 +283,12 @@ public class ProcelioLauncher extends Application {
             manifest.exec = packageManifest.newExec;
             Files.write(gameDir.toPath().resolve("manifest.json"), gson.toJson(manifest).getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
 
-            for(String toDeletePath : packageManifest.delete){
+            for (String toDeletePath : packageManifest.delete) {
                 File toDelete = new File(gameDir, toDeletePath);
                 LOG.info("Deleting {}", toDeletePath);
-                if(toDelete.exists() && toDelete.isDirectory())
+                if (toDelete.exists() && toDelete.isDirectory())
                     FileUtils.deleteRecursive(toDelete);
-                if(toDelete.exists() && !toDelete.delete())
+                if (toDelete.exists() && !toDelete.delete())
                     LOG.warn("Cannot delete file {}", toDelete.getAbsolutePath());
 
             }
@@ -303,7 +304,7 @@ public class ProcelioLauncher extends Application {
 
     public void freshBuild() throws IOException, UnirestException {
         LOG.info("Making fresh build");
-        if(!gameDir.exists())
+        if (!gameDir.exists())
             gameDir.mkdir();
         else
             FileUtils.deleteRecursive(gameDir);
@@ -329,7 +330,7 @@ public class ProcelioLauncher extends Application {
 
     public static void extractInputstream(InputStream stream, File targetDir) throws IOException {
         byte[] buffer = new byte[1024];
-        try (ZipInputStream zipStream = new ZipInputStream(stream)){
+        try (ZipInputStream zipStream = new ZipInputStream(stream)) {
             ZipEntry entry = null;
             while ((entry = zipStream.getNextEntry()) != null) {
                 String fileName = entry.getName();

@@ -62,13 +62,14 @@ public class EndpointWrapper {
         return getFile(path, null);
     }
 
-    public Tuple<InputStream, Tuple<String, MessageDigest>> getInputStream(String path) throws IOException {
+    public InputStream getInputStream(String path) throws IOException {
         URL url = new URL(path);
         HttpURLConnection httpConnection = (HttpURLConnection) (url.openConnection());
         long completeFileSize = httpConnection.getContentLength();
         try {
             MessageDigest md5 = MessageDigest.getInstance("MD5");
-            return new Tuple<>(new BufferedInputStream(new DigestInputStream(httpConnection.getInputStream(),md5)), new Tuple<>(httpConnection.getHeaderField("Content-MD5"), md5));
+            return new BufferedInputStream(httpConnection.getInputStream());
+            //return new Tuple<>(new BufferedInputStream(new DigestInputStream(httpConnection.getInputStream(),md5)), new Tuple<>(httpConnection.getHeaderField("Content-MD5"), md5));
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("Can't get input stream", e);
         }
