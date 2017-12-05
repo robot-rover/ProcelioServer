@@ -5,7 +5,7 @@ import java.util.List;
 public class LauncherDownload {
     public String build;
     public List<String> patches;
-    boolean upToDate;
+    public boolean upToDate;
     public Integer[] launcherVersion;
 
     public LauncherDownload(String build, boolean upToDate, Integer[] launcherVersion){

@@ -10,11 +10,17 @@ import org.slf4j.LoggerFactory;
 import procul.studios.pojo.Server;
 import procul.studios.pojo.response.LauncherConfiguration;
 import procul.studios.pojo.response.LauncherDownload;
+import procul.studios.util.Tuple;
 import procul.studios.util.Version;
 
+import javax.xml.bind.DatatypeConverter;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.function.Consumer;
 
 import static procul.studios.ProcelioLauncher.backendEndpoint;
@@ -56,12 +62,16 @@ public class EndpointWrapper {
         return getFile(path, null);
     }
 
-    public InputStream getInputStream(String path) throws IOException {
+    public Tuple<InputStream, Tuple<String, MessageDigest>> getInputStream(String path) throws IOException {
         URL url = new URL(path);
         HttpURLConnection httpConnection = (HttpURLConnection) (url.openConnection());
         long completeFileSize = httpConnection.getContentLength();
-        File tempFile = File.createTempFile("procelioLauncher", null);
-        return new BufferedInputStream(httpConnection.getInputStream());
+        try {
+            MessageDigest md5 = MessageDigest.getInstance("MD5");
+            return new Tuple<>(new BufferedInputStream(new DigestInputStream(httpConnection.getInputStream(),md5)), new Tuple<>(httpConnection.getHeaderField("Content-MD5"), md5));
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Can't get input stream", e);
+        }
     }
 
     public InputStream getFile(String path, Consumer<Integer> progressCallback) throws IOException {
@@ -69,8 +79,15 @@ public class EndpointWrapper {
             HttpURLConnection httpConnection = (HttpURLConnection) (url.openConnection());
             long completeFileSize = httpConnection.getContentLength();
             File tempFile = File.createTempFile("procelioLauncher", null);
+            LOG.info("TempFile for {}: {}", path, tempFile.getAbsoluteFile());
+        MessageDigest md5 = null;
+        try {
+            md5 = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("MD5 not supported", e);
+        }
 
-        try (BufferedInputStream in = new BufferedInputStream(httpConnection.getInputStream());
+        try (BufferedInputStream in = new BufferedInputStream(new DigestInputStream(httpConnection.getInputStream(), md5));
              BufferedOutputStream buff = new BufferedOutputStream(new FileOutputStream(tempFile))) {
 
             byte[] data = new byte[1024];
@@ -90,6 +107,8 @@ public class EndpointWrapper {
             }
             buff.close();
             in.close();
+            LOG.info("Server: {} -> Client: {}", httpConnection.getHeaderField("Content-MD5"), DatatypeConverter.printHexBinary(md5.digest()));
+
             return new BufferedInputStream(new FileInputStream(tempFile));
         }
     }

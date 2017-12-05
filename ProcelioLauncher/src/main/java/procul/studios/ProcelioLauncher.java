@@ -31,9 +31,11 @@ import procul.studios.pojo.Server;
 import procul.studios.pojo.response.LauncherConfiguration;
 import procul.studios.pojo.response.LauncherDownload;
 import procul.studios.util.FileUtils;
+import procul.studios.util.Tuple;
 import procul.studios.util.Version;
 import spark.utils.IOUtils;
 
+import javax.xml.bind.DatatypeConverter;
 import java.awt.*;
 import java.io.*;
 import java.net.URI;
@@ -42,9 +44,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.util.*;
 import java.util.List;
-import java.util.Locale;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -123,7 +126,7 @@ public class ProcelioLauncher extends Application {
         StackPane lineHolder = new StackPane(new Line(0,0,50,0));
         lineHolder.setAlignment(Pos.CENTER);
         updateArea.getChildren().add(lineHolder);
-        for(LauncherConfiguration.Update update : updates){
+        /*for(LauncherConfiguration.Update update : updates){
             HBox entry = new HBox();
             entry.setPadding(new Insets(10));
             entry.setSpacing(10);
@@ -157,7 +160,7 @@ public class ProcelioLauncher extends Application {
             StackPane lineHolderCopy = new StackPane(new Line(0,0,50,0));
             lineHolder.setAlignment(Pos.CENTER);
             updateArea.getChildren().add(lineHolderCopy);
-        }
+        }*/
         content.contentProperty().setValue(updateArea);
         root.centerProperty().setValue(content);
 
@@ -199,13 +202,28 @@ public class ProcelioLauncher extends Application {
 
     public void updateBuild(BuildManifest manifest) throws UnirestException, IOException {
         LauncherDownload download = wrapper.checkForUpdates(new Version(manifest.version));
+        if(download.upToDate){
+            LOG.info("All up to date");
+            return;
+        }
         if(download.patches == null){
             freshBuild();
             return;
         }
+        LOG.info("Patching Build");
         for(String patch : download.patches){
-            applyPatch(wrapper.getInputStream(backendEndpoint + patch), manifest);
+            InputStream hashes = wrapper.getFile(backendEndpoint + patch);
+            //savePatch(hashes, manifest);
+            //LOG.info("Server: {} -> Client: {}", hashes.getSecond().getFirst(), DatatypeConverter.printHexBinary(hashes.getSecond().getSecond().digest()));
+            //System.exit(0);
+            applyPatch(hashes, manifest);
         }
+    }
+
+    public void savePatch(InputStream patch, BuildManifest manifest) throws IOException {
+        File outputFile = new File("patch");
+        outputFile.mkdir();
+        extractInputstream(patch, outputFile);
     }
 
     public void applyPatch(InputStream patch, BuildManifest manifest) throws IOException {
@@ -215,13 +233,13 @@ public class ProcelioLauncher extends Application {
             ZipEntry entry = zipStream.getNextEntry();
             if(!entry.getName().equals("manifest.json"))
                 throw new RuntimeException("manifest.json must be the first zip entry");
-                LOG.info("Loading Package Manifest");
                 try (ByteArrayOutputStream manifestData = new ByteArrayOutputStream()) {
                     readEntry(zipStream, buffer, manifestData);
                     packageManifest = gson.fromJson(new String(manifestData.toByteArray()), PackageManifest.class);
                     if(packageManifest.delete == null)
                         packageManifest.delete = new ArrayList<>();
                 }
+                LOG.info("Applying patch " + Arrays.toString(packageManifest.fromVersion) + " -> " + Arrays.toString(packageManifest.toVersion));
                 while ((entry = zipStream.getNextEntry()) != null) {
                 String fileName = entry.getName();
                 if(FileUtils.getFileExtension(fileName).equals("patch")){
@@ -232,17 +250,24 @@ public class ProcelioLauncher extends Application {
                         continue;
                     }
                     byte[] oldBytes = Files.readAllBytes(gameDir.toPath().resolve(gameDirFile));
+                    byte[] assertPatchBytes = Files.readAllBytes(Paths.get("ProcelioServer/gameBuilds/patches/diff-" + new Version(packageManifest.fromVersion) + "-" + new Version(packageManifest.toVersion) + "/").resolve(fileName));
                     try (ByteArrayOutputStream patchStream = new ByteArrayOutputStream()) {
                         readEntry(zipStream, buffer, patchStream);
                         OutputStream patchedOut = new BufferedOutputStream(new FileOutputStream(toPatch, false));
+                        if(Arrays.equals(assertPatchBytes, patchStream.toByteArray()))
+                            LOG.info("Is {} read correctly? {}", fileName, String.valueOf(false));
                         Patch.patch(oldBytes, patchStream.toByteArray(), patchedOut);
+                        if(toPatch.length() == 0){
+                            LOG.warn("File {} is now 0 bytes long", toPatch.getAbsolutePath());
+                        }
                     } catch (InvalidHeaderException | CompressorException e) {
                         LOG.error("Patch Error", e);
                     }
                 } else {
                     if(packageManifest.delete.contains(fileName)){
-                        LOG.info("Ignoring {}" + fileName);
+                        LOG.info("Ignoring {}", fileName);
                     }
+                    LOG.info("Creating {}", fileName);
                     File newFile = new File(gameDir, fileName);
                     new File(newFile.getParent()).mkdirs();
                     if(newFile.isDirectory())
@@ -259,6 +284,9 @@ public class ProcelioLauncher extends Application {
 
             for(String toDeletePath : packageManifest.delete){
                 File toDelete = new File(gameDir, toDeletePath);
+                LOG.info("Deleting {}", toDeletePath);
+                if(toDelete.exists() && toDelete.isDirectory())
+                    FileUtils.deleteRecursive(toDelete);
                 if(toDelete.exists() && !toDelete.delete())
                     LOG.warn("Cannot delete file {}", toDelete.getAbsolutePath());
 
@@ -274,11 +302,14 @@ public class ProcelioLauncher extends Application {
     }
 
     public void freshBuild() throws IOException, UnirestException {
+        LOG.info("Making fresh build");
         if(!gameDir.exists())
             gameDir.mkdir();
         else
             FileUtils.deleteRecursive(gameDir);
-        extractInputstream(wrapper.getInputStream(backendEndpoint + "/launcher/build"), gameDir);
+        InputStream hashes = wrapper.getFile(backendEndpoint + "/launcher/build");
+        extractInputstream(hashes, gameDir);
+        //LOG.info("Server: {} -> Client: {}", hashes.getSecond().getFirst(), DatatypeConverter.printHexBinary(hashes.getSecond().getSecond().digest()));
     }
 
     public void launchFile(File executable) throws IOException {
@@ -289,8 +320,11 @@ public class ProcelioLauncher extends Application {
             e.printStackTrace();
             return;
         }
+        LOG.info("Launching " + executable.getAbsolutePath());
+        LOG.info(Files.readAllLines(executable.toPath()).toString());
         executable.setExecutable(true, true);
         Process game = new ProcessBuilder(executable.getAbsolutePath(), servers[0].hostname).directory(gameDir).inheritIO().start();
+        LOG.info(executable.getAbsolutePath() + " Exited");
     }
 
     public static void extractInputstream(InputStream stream, File targetDir) throws IOException {

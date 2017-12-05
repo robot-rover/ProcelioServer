@@ -11,6 +11,7 @@ import procul.studios.pojo.BuildManifest;
 import procul.studios.pojo.PackageManifest;
 import procul.studios.util.*;
 
+import javax.xml.bind.DatatypeConverter;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -131,7 +132,9 @@ public class DiffManager {
         } catch (IOException e) {
             throw new RuntimeException("Error calculating pack hash for " + toHash.getAbsolutePath(), e);
         }
-        return hash.digest();
+        byte[] hashBytes = hash.digest();
+        LOG.info("Calculated hash: {}", DatatypeConverter.printHexBinary(hashBytes));
+        return hashBytes;
     }
 
     public void generatePackages(){

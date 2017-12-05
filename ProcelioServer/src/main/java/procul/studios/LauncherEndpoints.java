@@ -9,6 +9,7 @@ import spark.Request;
 
 import spark.Response;
 
+import javax.xml.bind.DatatypeConverter;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -66,7 +67,7 @@ public class LauncherEndpoints {
 
     public Object fullBuild(Request req, Response res){
         res.header("Content-Type", "application/zip");
-        res.header("Content-MD5", Base64.getEncoder().encodeToString(differ.getNewestPackage().getSecond()));
+        res.header("Content-MD5", DatatypeConverter.printHexBinary(differ.getNewestPackage().getSecond()));
         try {
             OutputStream out = res.raw().getOutputStream();
             InputStream in = new BufferedInputStream(new FileInputStream(differ.getNewestPackage().getFirst()));
@@ -97,7 +98,7 @@ public class LauncherEndpoints {
         if(pack == null)
             return ex("Patch could not be found", 404);
         res.header("Content-Type", "application/zip");
-        res.header("Content-MD5", Base64.getEncoder().encodeToString(pack.hash));
+        res.header("Content-MD5", DatatypeConverter.printHexBinary(pack.hash));
         try {
             OutputStream out = res.raw().getOutputStream();
             InputStream in = new BufferedInputStream(new FileInputStream(pack.zip));
