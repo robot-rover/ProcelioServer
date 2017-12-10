@@ -6,6 +6,6 @@ public class HashMissmatchException extends Exception {
     }
 
     public HashMissmatchException(String file, String expected, String actual){
-        super("Unable to download " + file + " correctly ");
+        super("Unable to download " + file + " correctly. Expected - " + expected + ", Actual - " + actual);
     }
 }

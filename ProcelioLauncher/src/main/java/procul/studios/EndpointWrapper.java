@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import procul.studios.pojo.Server;
 import procul.studios.pojo.response.LauncherConfiguration;
 import procul.studios.pojo.response.LauncherDownload;
+import procul.studios.util.HashMissmatchException;
 import procul.studios.util.Version;
 
 import javax.xml.bind.DatatypeConverter;
@@ -64,7 +65,7 @@ public class EndpointWrapper {
         return new Image(response.getBody());
     }
 
-    public InputStream getFile(String path) throws IOException {
+    public InputStream getFile(String path) throws IOException, HashMissmatchException {
         return getFile(path, null);
     }
 
@@ -80,7 +81,7 @@ public class EndpointWrapper {
         }
     }
 
-    public InputStream getFile(String path, Consumer<Double> progressCallback) throws IOException {
+    public InputStream getFile(String path, Consumer<Double> progressCallback) throws IOException, HashMissmatchException {
             URL url = new URL(path);
             HttpURLConnection httpConnection = (HttpURLConnection) (url.openConnection());
             long completeFileSize = httpConnection.getContentLength();
@@ -99,10 +100,10 @@ public class EndpointWrapper {
             try (BufferedInputStream in = new BufferedInputStream(new DigestInputStream(httpConnection.getInputStream(), md5));
                  BufferedOutputStream buff = new BufferedOutputStream(new FileOutputStream(tempFile, false))) {
                 LOG.info("Downloading {} with {} tries left", path, triesLeft);
-                byte[] data = new byte[1024];
+                byte[] data = new byte[1024*10];
                 long downloadedFileSize = 0;
                 int x = 0;
-                while ((x = in.read(data, 0, 1024)) >= 0) {
+                while ((x = in.read(data)) >= 0) {
                     downloadedFileSize += x;
 
                     // calculate progress
@@ -121,7 +122,7 @@ public class EndpointWrapper {
             if(serverHash.equals(clientHash))
                 return new BufferedInputStream(new FileInputStream(tempFile));
         }
-        throw new IOException("Unable to ensure integrity of downloaded files");
+        throw new HashMissmatchException(path);
     }
 
     public Server[] getServers() throws IOException {
