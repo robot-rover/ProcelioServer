@@ -8,6 +8,7 @@ public class Pack {
     public Tuple<Version, Version> bridge;
     public byte[] hash;
     public File zip;
+    public long length;
 
     public Pack(Tuple<Version, Version> bridge, byte[] hash, File zip) {
         this.bridge = bridge;

@@ -1,5 +1,6 @@
 package procul.studios;
 
+import io.sigpipe.jbsdiff.Diff;
 import io.sigpipe.jbsdiff.InvalidHeaderException;
 import io.sigpipe.jbsdiff.ui.FileUI;
 import net.lingala.zip4j.model.ZipParameters;
@@ -9,16 +10,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.pojo.BuildManifest;
 import procul.studios.pojo.PackageManifest;
+import procul.studios.pojo.response.Message;
 import procul.studios.util.*;
+import spark.utils.IOUtils;
 
 import javax.xml.bind.DatatypeConverter;
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.Security;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,12 +32,12 @@ public class DiffManager {
     private static final Pattern buildPattern = Pattern.compile("build-(\\d+)\\.(\\d+)\\.(\\d+)");
     private static final Pattern packagePattern = Pattern.compile("diff-(\\d+)\\.(\\d+)\\.(\\d+)-(\\d+)\\.(\\d+)\\.(\\d+).zip");
     private final ZipParameters params = new ZipParameters();
-    private File diffDir;
-    private File buildDir;
-    private File zipDir;
+    public File diffDir;
+    public File buildDir;
+    public File zipDir;
     private List<Tuple<Version, File>> versions;
     private List<Pack> packages;
-    private Tuple<File, byte[]> currentBuild;
+    private Pack currentBuild;
     private boolean hasDiffed;
     public DiffManager(Configuration config){
         hasDiffed = false;
@@ -83,12 +85,13 @@ public class DiffManager {
         return versions.get(versions.size()-1).getFirst();
     }
 
-    public Tuple<File, byte[]> getNewestPackage(){
+    public Pack getNewestBuild(){
         return currentBuild;
     }
 
     public void clearPatches(){
         FileUtils.deleteRecursive(diffDir);
+        clearPackages();
     }
 
     public void clearPackages(){
@@ -106,9 +109,9 @@ public class DiffManager {
 
     private void zipFile(File sourceDirectory, File zipArc){
         if(zipArc.exists())
-            LOG.info("Pack " + FileUtils.pathRelativeTo(zipArc.toPath(), zipDir.toPath()) + " already exists, skipping");
+            LOG.info("Pack " + zipDir.toPath().relativize(zipArc.toPath()) + " already exists, skipping");
         else try {
-            LOG.info("Zipping " + FileUtils.pathRelativeTo(zipArc.toPath(), zipDir.toPath()));
+            LOG.info("Zipping " + zipDir.toPath().relativize(zipArc.toPath()));
             AppZip zip = new AppZip(sourceDirectory);
             zip.zipIt(zipArc);
         } catch (IOException e) {
@@ -116,15 +119,20 @@ public class DiffManager {
         }
     }
 
-    private byte[] hashFile(File toHash){
+    private Tuple<byte[], Long> hashFile(File toHash){
         InputStream pack;
         MessageDigest hash;
         DigestInputStream hashStream;
+        long fileLength = 0;
         try {
             hash = MessageDigest.getInstance("MD5");
             pack = new FileInputStream(toHash);
             hashStream = new DigestInputStream(pack, hash);
-            while(hashStream.read() != -1){}
+            byte[] buffer = new byte[1024];
+            int len;
+            while((len = hashStream.read(buffer)) != -1){
+                fileLength += len;
+            }
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("MD5 Hash not supported on this system", e);
         } catch (FileNotFoundException e) {
@@ -134,7 +142,7 @@ public class DiffManager {
         }
         byte[] hashBytes = hash.digest();
         LOG.info("Calculated hash: {}", DatatypeConverter.printHexBinary(hashBytes));
-        return hashBytes;
+        return new Tuple<>(hashBytes, fileLength);
     }
 
     public void generatePackages(){
@@ -145,8 +153,10 @@ public class DiffManager {
             Pack currentPack = packages.stream().filter(v -> v.zip.equals(patch)).findAny().orElseThrow(() -> new RuntimeException("Cannot find version for diff " + patch.getAbsolutePath()));
             currentPack.zip = zipArc;
             zipFile(patch, zipArc);
-            LOG.info("Hashing " + FileUtils.pathRelativeTo(zipArc.toPath(), zipDir.toPath()));
-            currentPack.hash = hashFile(zipArc);
+            LOG.info("Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
+            Tuple<byte[], Long> packData = hashFile(zipArc);
+            currentPack.hash = packData.getFirst();
+            currentPack.length = packData.getSecond();
         }
         if(versions.size() == 0)
             throw new RuntimeException("No Builds to Diff!");
@@ -154,13 +164,14 @@ public class DiffManager {
         if(!newestBuild.exists())
             throw new RuntimeException("Newest build " + newestBuild.getAbsolutePath() + " doesn't exist to be zipped");
         File zipArc = new File(zipDir, newestBuild.getName() + ".zip");
-        currentBuild = new Tuple<>(zipArc, null);
         if(!zipArc.exists())
             zipFile(newestBuild, zipArc);
         else
-            LOG.info("Pack " + FileUtils.pathRelativeTo(zipArc.toPath(), zipDir.toPath()) + " already exists, skipping");
-        LOG.info("Hashing " + FileUtils.pathRelativeTo(zipArc.toPath(), zipDir.toPath()));
-        currentBuild.setSecond(hashFile(zipArc));
+            LOG.info("Pack " + zipDir.toPath().relativize(zipArc.toPath()) + " already exists, skipping");
+        LOG.info("Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
+        Tuple<byte[], Long> packInfo = hashFile(zipArc);
+        currentBuild = new Pack(null, packInfo.getFirst(), zipArc);
+        currentBuild.length = packInfo.getSecond();
     }
 
     private void buildDiff(Tuple<Version, File> from, Tuple<Version, File> to){
@@ -229,8 +240,10 @@ public class DiffManager {
         List<File> fromCurrent = Arrays.asList(current.listFiles());
         for(int i = 0; i < fromCurrent.size(); i++){
             File newFile = fromCurrent.get(i);
-            if(buildManifest.getSecond().ignore.contains(FileUtils.pathRelativeTo(newFile.toPath(), manifest.getBaseDir().toPath()).toString())){
-                LOG.info("Ignored " + FileUtils.pathRelativeTo(newFile.toPath(), diffDir.toPath()).toString());
+            if(buildManifest.getSecond().baseDir.toPath().relativize(newFile.toPath()).equals(Paths.get("manifest.json")))
+                continue;
+            if(buildManifest.getSecond().ignore.contains(manifest.getBaseDir().toPath().relativize(newFile.toPath()).toString())){
+                LOG.info("Ignored " + diffDir.toPath().relativize(newFile.toPath()).toString());
                 continue;
             }
             File oldFile = fromOld.stream().filter(v -> v.getName().equals(newFile.getName())).findAny().orElse(null);
@@ -247,27 +260,42 @@ public class DiffManager {
                     recursiveDiff(oldFile, newFile, dirInDiff, manifest, buildManifest);
                 }
             } else {
+                MessageDigest hasher = Hashing.getMessageDigest();
+                FileInputStream currentFileIn = new FileInputStream(newFile);
+                ByteArrayOutputStream currentFileBytes = new ByteArrayOutputStream();
+                IOUtils.copyLarge(new DigestInputStream(currentFileIn, hasher), currentFileBytes);
+                Path subPath = diffDir.toPath().relativize(diff.toPath().resolve(newFile.getName()));
+                manifest.filesAndHashes.add(
+                        DatatypeConverter.printHexBinary(hasher.digest()) + subPath.subpath(1, subPath.getNameCount())
+
+                );
                 if (oldFile == null) {
-                    LOG.info("Copying " + FileUtils.pathRelativeTo(diff.toPath().resolve(newFile.getName()), diffDir.toPath()).toString());
-                    Files.copy(newFile.toPath(), diff.toPath().resolve(newFile.getName()), StandardCopyOption.COPY_ATTRIBUTES);
+                    LOG.info("Copying " + diffDir.toPath().relativize(diff.toPath().resolve(newFile.getName())).toString());
+                    Files.write(diff.toPath().resolve(newFile.getName()), currentFileBytes.toByteArray(), StandardOpenOption.CREATE);
+                    //Files.copy(newFile.toPath(), diff.toPath().resolve(newFile.getName()), StandardCopyOption.COPY_ATTRIBUTES);
                 } else {
                     fromOld.remove(oldFile);
+                    ByteArrayOutputStream oldFileBytes = new ByteArrayOutputStream();
+                    FileInputStream oldFileIn = new FileInputStream(oldFile);
+                    IOUtils.copyLarge(oldFileIn, oldFileBytes);
                     try {
-                        LOG.info("Diffing " + FileUtils.pathRelativeTo(diff.toPath().resolve(newFile.getName()), diffDir.toPath()).toString());
-                        FileUI.diff(oldFile, newFile, new File(diff, newFile.getName() + ".patch"));
+                        LOG.info("Diffing " + diffDir.toPath().relativize(diff.toPath().resolve(newFile.getName())).toString());
+                        Diff.diff(oldFileBytes.toByteArray(), currentFileBytes.toByteArray(), new FileOutputStream(new File(diff, newFile.getName() + ".patch")));
+                        //FileUI.diff(oldFile, newFile, new File(diff, newFile.getName() + ".patch"));
                     } catch (InvalidHeaderException e) {
                         throw new IOException("Invalid File Header", e);
                     } catch (CompressorException e) {
                         throw new IOException("Invalid Compressor", e);
                     }
                 }
+
             }
         }
         for (File toRemove : fromOld) {
-            if(buildManifest.getFirst().ignore.contains(FileUtils.pathRelativeTo(toRemove.toPath(), manifest.getBaseDir().toPath()).toString()))
-                LOG.info("Ignored " + FileUtils.pathRelativeTo(toRemove.toPath(), diffDir.toPath()).toString());
+            if(buildManifest.getFirst().ignore.contains(manifest.getBaseDir().toPath().relativize(toRemove.toPath()).toString()))
+                LOG.info("Ignored " + diffDir.toPath().relativize(toRemove.toPath()).toString());
             else
-                manifest.delete.add(FileUtils.pathRelativeTo(toRemove.toPath(), manifest.getBaseDir().toPath()).toString());
+                manifest.delete.add(manifest.getBaseDir().toPath().resolve(toRemove.toPath()).toString());
         }
 
     }
@@ -282,7 +310,7 @@ public class DiffManager {
                     throw new IOException("Cannot make dir inside recursive copy");
                 recursiveCopy(f, target);
             } else {
-                LOG.info("Copying " + FileUtils.pathRelativeTo(to.toPath().resolve(f.getName()), diffDir.toPath()).toString());
+                LOG.info("Copying " + diffDir.toPath().relativize(to.toPath().resolve(f.getName())).toString());
                 Files.copy(f.toPath(), to.toPath().resolve(f.getName()), StandardCopyOption.COPY_ATTRIBUTES);
             }
         }

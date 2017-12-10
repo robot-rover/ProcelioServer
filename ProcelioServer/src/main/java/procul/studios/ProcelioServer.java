@@ -39,7 +39,6 @@ public class ProcelioServer {
                 differ.generatePackages();
             } else if(args[0].equals("repackage")) {
                 differ.clearPatches();
-                differ.clearPackages();
                 differ.generatePackages();
             } else if(args[0].equals("init")){
                 String configText = Configuration.gson.toJson(config);

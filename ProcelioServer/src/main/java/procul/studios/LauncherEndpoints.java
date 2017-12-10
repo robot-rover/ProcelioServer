@@ -8,11 +8,13 @@ import procul.studios.util.Version;
 import spark.Request;
 
 import spark.Response;
+import spark.utils.IOUtils;
 
 import javax.xml.bind.DatatypeConverter;
 import java.io.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -23,6 +25,7 @@ import static procul.studios.SparkServer.ex;
 
 public class LauncherEndpoints {
     private static final Pattern packagePattern = Pattern.compile("(\\d+)\\.(\\d+)\\.(\\d+)-(\\d+)\\.(\\d+)\\.(\\d+)");
+    private static final Pattern versionPattern = Pattern.compile("(\\d+)\\.(\\d+)\\.(\\d+)");
     Configuration config;
     DiffManager differ;
 
@@ -35,15 +38,34 @@ public class LauncherEndpoints {
         return gson.toJson(config.launcherConfig);
     }
 
+    public Object getBuildFile(Request req, Response res){
+        res.header("Content-Type", "application/octet-stream");
+        Version buildVersion = getVersion(req.params(":build"));
+        String[] filePath = req.splat();
+        if(filePath == null || filePath.length < 1 || filePath[0] == null){
+            return ex("No File Specified", 400);
+        }
+        Path requestedFile = differ.buildDir.toPath().resolve("build-" + buildVersion.toString()).resolve(filePath[0]);
+        if(!requestedFile.normalize().startsWith(differ.buildDir.toPath())) {
+            return ex(requestedFile.toString() + " is not a valid file", 400);
+        }
+        File file = requestedFile.toFile();
+        if(!file.exists())
+            return ex("The file " + requestedFile.toString() + " does not exist", 404);
+        try (OutputStream out = res.raw().getOutputStream();
+             InputStream in = new FileInputStream(file)){
+            IOUtils.copyLarge(in, out);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return res.raw();
+    }
+
     public Object getIcon(Request req, Response res){
         res.header("Content-Type","image/" + FileUtils.getFileExtension(config.iconPath));
-        try {
-            OutputStream out = res.raw().getOutputStream();
-            InputStream in = new BufferedInputStream(new FileInputStream(config.iconPath));
-            int data;
-            while((data = in.read()) != -1)
-                out.write(data);
-            out.flush();
+        try (OutputStream out = res.raw().getOutputStream();
+             InputStream in = new FileInputStream(config.iconPath)){
+            IOUtils.copyLarge(in, out);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -52,13 +74,9 @@ public class LauncherEndpoints {
 
     public Object getLogo(Request req, Response res){
         res.header("Content-Type","image/" + FileUtils.getFileExtension(config.logoPath));
-        try {
-            OutputStream out = res.raw().getOutputStream();
-            InputStream in = new BufferedInputStream(new FileInputStream(config.logoPath));
-            int data;
-            while((data = in.read()) != -1)
-                out.write(data);
-            out.flush();
+        try (OutputStream out = res.raw().getOutputStream();
+             InputStream in = new FileInputStream(config.logoPath)){
+            IOUtils.copyLarge(in, out);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -67,14 +85,10 @@ public class LauncherEndpoints {
 
     public Object fullBuild(Request req, Response res){
         res.header("Content-Type", "application/zip");
-        res.header("Content-MD5", DatatypeConverter.printHexBinary(differ.getNewestPackage().getSecond()));
-        try {
-            OutputStream out = res.raw().getOutputStream();
-            InputStream in = new BufferedInputStream(new FileInputStream(differ.getNewestPackage().getFirst()));
-            int data;
-            while((data = in.read()) != -1)
-                out.write(data);
-            out.flush();
+        res.header("Content-MD5", DatatypeConverter.printHexBinary(differ.getNewestBuild().hash));
+        try (OutputStream out = res.raw().getOutputStream();
+             InputStream in = new FileInputStream(differ.getNewestBuild().zip)){
+            IOUtils.copyLarge(in, out);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -83,29 +97,16 @@ public class LauncherEndpoints {
 
     public Object getPatch(Request req, Response res){
         String version = req.params(":patch");
-        if(version == null)
-            return ex("Missing version in path", 400);
-        Matcher m = packagePattern.matcher(version);
-        if(!m.find())
-            return ex("Malformed version in path", 400);
-        Tuple<Version, Version> patchVersion;
-        try {
-            patchVersion = new Tuple<>(new Version(m.group(1), m.group(2), m.group(3)), new Version(m.group(4), m.group(5), m.group(6)));
-        } catch (NumberFormatException e){
-            return ex("Malformed version in path", 400);
-        }
+        Tuple<Version, Version> patchVersion = getPatchVersion(version);
         Pack pack = differ.getPackages().stream().filter(v -> v.bridge.equals(patchVersion)).findAny().orElse(null);
         if(pack == null)
             return ex("Patch could not be found", 404);
         res.header("Content-Type", "application/zip");
         res.header("Content-MD5", DatatypeConverter.printHexBinary(pack.hash));
-        try {
-            OutputStream out = res.raw().getOutputStream();
-            InputStream in = new BufferedInputStream(new FileInputStream(pack.zip));
-            int data;
-            while((data = in.read()) != -1)
-                out.write(data);
-            out.flush();
+        res.header("Content-Length", String.valueOf(pack.length));
+        try (OutputStream out = res.raw().getOutputStream();
+             InputStream in = new FileInputStream(pack.zip)){
+            IOUtils.copyLarge(in, out);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -117,15 +118,7 @@ public class LauncherEndpoints {
         String currentVersionString = req.params(":patch");
         if (currentVersionString == null)
             return gson.toJson(new LauncherDownload("/launcher/build", false, config.launcherConfig.launcherVersion));
-        String[] version = currentVersionString.split("\\.");
-        if (version.length != 3)
-            ex("Malformed Version in path", 400);
-        Version currentVersion;
-        try {
-            currentVersion = new Version(version);
-        } catch (NumberFormatException e){
-            return ex("Malformed Version in path", 400);
-        }
+        Version currentVersion = getVersion(currentVersionString);
         List<Pack> packages = differ.getPackages();
         List<Tuple<Version, Version>> neededPackages = new ArrayList<>();
         Version goal = differ.getNewestVersion();
@@ -153,5 +146,35 @@ public class LauncherEndpoints {
             result.patches.add("/launcher/patch/" + neededPackages.get(i).getFirst() + "-" + neededPackages.get(i).getSecond());
         }
         return gson.toJson(result);
+    }
+
+    public Tuple<Version, Version> getPatchVersion(String version){
+        Tuple<Version, Version> patchVersion = null;
+        if(version == null)
+            ex("Missing version in path", 400);
+        Matcher m = packagePattern.matcher(version);
+        if(!m.find())
+            ex("Malformed version in path", 400);
+        try {
+            patchVersion = new Tuple<>(new Version(m.group(1), m.group(2), m.group(3)), new Version(m.group(4), m.group(5), m.group(6)));
+        } catch (NumberFormatException e){
+            ex("Malformed version in path", 400);
+        }
+        return patchVersion;
+    }
+
+    public Version getVersion(String versionString){
+        Version version = null;
+        if(versionString == null)
+            ex("Missing version in path", 400);
+        Matcher m = versionPattern.matcher(versionString);
+        if(!m.find())
+            ex("Malformed version in path", 400);
+        try {
+            version = new Version(m.group(1), m.group(2), m.group(3));
+        } catch (NumberFormatException e){
+            ex("Malformed version in path", 400);
+        }
+        return version;
     }
 }

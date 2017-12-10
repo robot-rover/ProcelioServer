@@ -71,6 +71,7 @@ public class SparkServer {
         get("/launcher/build", launcher::fullBuild);
         get("/launcher/:patch", launcher::getPatchList);
         get("/launcher/patch/:patch", launcher::getPatch);
+        get("/launcher/buildFile/:build/*", launcher::getBuildFile);
 
 
         notFound((req, res) -> gson.toJson(new Message("Route not found", 404)));

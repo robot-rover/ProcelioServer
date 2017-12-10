@@ -1,19 +1,20 @@
 package procul.studios;
 
 import com.mashape.unirest.http.exceptions.UnirestException;
-import com.sun.xml.internal.bind.v2.runtime.reflect.Lister;
-import com.sun.xml.internal.messaging.saaj.util.ByteOutputStream;
 import io.sigpipe.jbsdiff.InvalidHeaderException;
 import io.sigpipe.jbsdiff.Patch;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.*;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.effect.BlendMode;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
@@ -31,9 +32,9 @@ import procul.studios.pojo.Server;
 import procul.studios.pojo.response.LauncherConfiguration;
 import procul.studios.pojo.response.LauncherDownload;
 import procul.studios.util.FileUtils;
+import procul.studios.util.Hashing;
 import procul.studios.util.Tuple;
 import procul.studios.util.Version;
-import spark.utils.IOUtils;
 
 import javax.xml.bind.DatatypeConverter;
 import java.awt.*;
@@ -41,13 +42,14 @@ import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
-import java.util.*;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -58,6 +60,8 @@ public class ProcelioLauncher extends Application {
     private static final Logger LOG = LoggerFactory.getLogger(ProcelioLauncher.class);
     public static final Version launcherVersion = new Version(0, 0, 0);
     public static final String backendEndpoint = /*"https://api.sovietbot.xyz"*/ "http://localhost";
+    public Tuple<Label, ProgressBar> download;
+    public TabPane selectView;
     public File gameDir = new File("ProcelioGame");
 
     public static void main(String[] args) {
@@ -65,20 +69,19 @@ public class ProcelioLauncher extends Application {
     }
 
     private EndpointWrapper wrapper;
-    private int shaderOrdinal = 0;
 
     @Override
-    public void start(Stage primaryStage) throws UnirestException {
+    public void start(Stage primaryStage) throws UnirestException, NoSuchAlgorithmException, CloneNotSupportedException {
         wrapper = new EndpointWrapper();
         primaryStage.setTitle("Procelio Launcher v" + launcherVersion);
-        primaryStage.getIcons().add(wrapper.getIcon());
+        primaryStage.getIcons().add(new Image(ClassLoader.getSystemResourceAsStream("icon.png")));
         BorderPane root = new BorderPane();
 
         HBox titleBox = new HBox();
         titleBox.setPadding(new Insets(10));
         titleBox.setSpacing(100);
         StackPane logoCollider = new StackPane();
-        ImageView logo = new ImageView(wrapper.getLogo());
+        ImageView logo = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("logo.png")));
         logo.setSmooth(true);
         logo.preserveRatioProperty().setValue(true);
         logo.setFitHeight(100);
@@ -86,8 +89,9 @@ public class ProcelioLauncher extends Application {
         logoCollider.setOnMouseClicked(event -> {
             try {
                 openBrowser(wrapper.getConfig().websiteUrl);
-            } catch (UnirestException e) {
-                e.printStackTrace();
+            } catch (IOException e) {
+                LOG.warn("Unable to connect to server");
+                dialog("Connection Error", "Unable to communitcate with Procelio Servers", Alert.AlertType.WARNING);
             }
         });
         logoCollider.setOnMouseEntered(event -> logo.setBlendMode(BlendMode.DIFFERENCE));
@@ -97,10 +101,20 @@ public class ProcelioLauncher extends Application {
         VBox motd = new VBox();
         motd.setPadding(new Insets(10));
         motd.setAlignment(Pos.CENTER_RIGHT);
-        Label motdText = new Label(wrapper.getConfig().quoteOfTheDay);
+        Label motdText = null;
+        try {
+            motdText = new Label(wrapper.getConfig().quoteOfTheDay);
+        } catch (IOException e) {
+            motdText = new Label("No connection to server");
+        }
         motdText.setWrapText(true);
         motd.getChildren().add(motdText);
-        Label motdAuthor = new Label("- " + wrapper.getConfig().quoteAuthor);
+        Label motdAuthor = null;
+        try {
+            motdAuthor = new Label("- " + wrapper.getConfig().quoteAuthor);
+        } catch (IOException e) {
+            motdAuthor = new Label();
+        }
         motdAuthor.setAlignment(Pos.TOP_RIGHT);
         motd.getChildren().add(motdAuthor);
         titleBox.getChildren().add(motd);
@@ -111,62 +125,104 @@ public class ProcelioLauncher extends Application {
         launchBox.setPadding(new Insets(10));
         launchBox.setAlignment(Pos.CENTER_RIGHT);
         Button launch = new Button("Launch");
-        launch.setOnAction(this::launch);
+        launch.setOnAction(this::launchClick);
         launchBox.getChildren().add(launch);
         root.bottomProperty().setValue(launchBox);
 
-        ScrollPane content = new ScrollPane();
-        content.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        content.setVbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
-        content.fitToWidthProperty().setValue(true);
+        selectView = new TabPane();
+        selectView.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+
+        Tab updateProgress = new Tab();
+        updateProgress.setText("Download");
+        VBox downloadContent = new VBox();
+        downloadContent.setAlignment(Pos.CENTER);
+        downloadContent.setSpacing(10);
+        downloadContent.setPadding(new Insets(10));
+        ProgressBar downloadProgress = new ProgressBar();
+
+        downloadProgress.setMinSize(500, 20);
+        downloadProgress.setProgress(0);
+        downloadContent.getChildren().add(downloadProgress);
+        Label downloadStatus = new Label("No download in progress");
+        downloadContent.getChildren().add(downloadStatus);
+        updateProgress.setContent(downloadContent);
+        download = new Tuple<>(downloadStatus, downloadProgress);
+        selectView.getTabs().add(updateProgress);
+
+        Tab updateList = new Tab();
+        updateList.setText("Updates");
+        ScrollPane updateScroller = new ScrollPane();
+        updateScroller.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        updateScroller.setVbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
+        updateScroller.fitToWidthProperty().setValue(true);
         VBox updateArea = new VBox();
         updateArea.setPadding(new Insets(10));
         updateArea.setSpacing(10);
-        List<LauncherConfiguration.Update> updates = wrapper.getConfig().updates;
+        List<LauncherConfiguration.Update> updates = null;
+        try {
+            updates = wrapper.getConfig().updates;
+        } catch (IOException e) {
+            LOG.warn("Unable to connect to server");
+        }
         StackPane lineHolder = new StackPane(new Line(0, 0, 50, 0));
         lineHolder.setAlignment(Pos.CENTER);
         updateArea.getChildren().add(lineHolder);
-        /*for(LauncherConfiguration.Update update : updates){
-            HBox entry = new HBox();
-            entry.setPadding(new Insets(10));
-            entry.setSpacing(10);
-            if(update.image != null){
-                ImageView updateIcon = new ImageView(wrapper.getImage(update.image));
-                updateIcon.setSmooth(true);
-                updateIcon.preserveRatioProperty().setValue(true);
-                updateIcon.setFitHeight(100);
-                entry.getChildren().add(updateIcon);
-            }
-            TextFlow description = new TextFlow();
-            if(update.version != null && update.version.length == 3){
-                Text version = new Text("Version " + update.version[0] + "." + update.version[1] + "." + update.version[2] + "\n");
-                version.setFont(Font.font(20));
-                description.getChildren().add(version);
-            }
-            description.getChildren().add(new Text(update.description));
-            //description.setWrapText(true);
-            if(update.hyperlink != null){
-                Text link = new Text("\n" + update.hyperlink);
-                link.setOnMouseClicked((MouseEvent event) -> {
-                    openBrowser(update.hyperlink);
-                });
-                link.setUnderline(true);
-                description.getChildren().add(link);
-            }
-            entry.getChildren().add(description);
-            updateArea.getChildren().add(entry);
+        if(updates != null)
+            for(LauncherConfiguration.Update update : updates){
+                HBox entry = new HBox();
+                entry.setPadding(new Insets(10));
+                entry.setSpacing(10);
+                if(update.image != null){
+                    try {
+                        ImageView updateIcon = new ImageView(wrapper.getImage(update.image));
+                        updateIcon.setSmooth(true);
+                        updateIcon.preserveRatioProperty().setValue(true);
+                        updateIcon.setFitHeight(100);
+                        entry.getChildren().add(updateIcon);
+                    } catch (IOException e) {
+                        LOG.warn("Unable to fetch image {}", update.image, e);
+                    }
+                }
+                TextFlow description = new TextFlow();
+                if(update.version != null && update.version.length == 3){
+                    Text version = new Text("Version " + update.version[0] + "." + update.version[1] + "." + update.version[2] + "\n");
+                    version.setFont(Font.font(20));
+                    description.getChildren().add(version);
+                }
+                description.getChildren().add(new Text(update.description));
+
+                if(update.hyperlink != null){
+                    Text link = new Text("\n" + update.hyperlink);
+                    link.setOnMouseClicked((MouseEvent event) -> {
+                        openBrowser(update.hyperlink);
+                    });
+                    link.setUnderline(true);
+                    description.getChildren().add(link);
+                }
+                entry.getChildren().add(description);
+                updateArea.getChildren().add(entry);
 
 
-            StackPane lineHolderCopy = new StackPane(new Line(0,0,50,0));
-            lineHolder.setAlignment(Pos.CENTER);
-            updateArea.getChildren().add(lineHolderCopy);
-        }*/
-        content.contentProperty().setValue(updateArea);
-        root.centerProperty().setValue(content);
+                StackPane lineHolderCopy = new StackPane(new Line(0,0,50,0));
+                lineHolder.setAlignment(Pos.CENTER);
+                updateArea.getChildren().add(lineHolderCopy);
+            }
+        updateScroller.contentProperty().setValue(updateArea);
+        updateList.setContent(updateScroller);
+        selectView.getTabs().add(updateList);
+        root.centerProperty().setValue(selectView);
 
         primaryStage.setScene(new Scene(root, 800, 400));
 
         primaryStage.show();
+
+    }
+
+    public void dialog(String title, String content, Alert.AlertType type){
+        Alert dialog = new Alert(type);
+        dialog.setContentText(content);
+        dialog.setTitle(title);
+        dialog.show();
     }
 
     public void openBrowser(String url) {
@@ -177,30 +233,47 @@ public class ProcelioLauncher extends Application {
                 LOG.info("Opening " + url);
                 Desktop.getDesktop().browse(new URI(url));
             } else {
-                LOG.warn("No way to open hyperlink");
+                //todo: allow copy paste if unsupported
+                LOG.warn("Unable to open hyperlink");
             }
         } catch (IOException | URISyntaxException e) {
             LOG.error("Error opening hyperlink " + url, e);
         }
     }
 
-    public void launch(ActionEvent e) {
+    public void launchClick(ActionEvent e) {
+        Thread worker = new Thread(this::launchGame);
+        worker.start();
+    }
+
+    public void launchGame() {
         try {
-            boolean isReady = false;
-            if (!gameDir.exists()) {
+            if (!gameDir.exists() || !new File(gameDir, "manifest.json").exists()) {
                 freshBuild();
-                isReady = true;
+                BuildManifest manifest = EndpointWrapper.gson.fromJson(new InputStreamReader(new FileInputStream(new File(gameDir, "manifest.json"))), BuildManifest.class);
+                launchFile(new File(gameDir, manifest.exec));
+                return;
             }
-            BuildManifest manifest = EndpointWrapper.gson.fromJson(new InputStreamReader(new FileInputStream(new File(gameDir, "manifest.json"))), BuildManifest.class);
-            if (!isReady)
+        } catch (IOException e) {
+            dialog("Connection Error", "Unable to download game\n" + e.getMessage(), Alert.AlertType.ERROR);
+            LOG.warn("Error downloading and starting game", e);
+            return;
+        }
+        try {
+            BuildManifest manifest = EndpointWrapper.gson.fromJson(new FileReader(new File(gameDir, "manifest.json")), BuildManifest.class);
+            try {
                 updateBuild(manifest);
+            } catch (IOException e){
+                LOG.warn("Unable to connect to server");
+            }
             launchFile(new File(gameDir, manifest.exec));
-        } catch (UnirestException | IOException e1) {
-            throw new RuntimeException(e1);
+        } catch (IOException e){
+            dialog("Unable to Lanch", "The launcher encountered an error and is unable to launch Procelio\n" + e.getMessage(), Alert.AlertType.ERROR);
+            LOG.warn("Unable to launch game", e);
         }
     }
 
-    public void updateBuild(BuildManifest manifest) throws UnirestException, IOException {
+    public void updateBuild(BuildManifest manifest) throws IOException {
         LauncherDownload download = wrapper.checkForUpdates(new Version(manifest.version));
         if (download.upToDate) {
             LOG.info("All up to date");
@@ -212,18 +285,25 @@ public class ProcelioLauncher extends Application {
         }
         LOG.info("Patching Build");
         for (String patch : download.patches) {
-            InputStream hashes = wrapper.getInputStream(backendEndpoint + patch);
-            //savePatch(hashes, manifest);
-            //LOG.info("Server: {} -> Client: {}", hashes.getSecond().getFirst(), DatatypeConverter.printHexBinary(hashes.getSecond().getSecond().digest()));
-            //System.exit(0);
-            applyPatch(hashes, manifest);
+            InputStream input = wrapper.getFile(backendEndpoint + patch, this::updateProgressBar);
+            applyPatch(input, manifest);
         }
+    }
+
+    private String previewByteArray(byte[] array){
+        if(array.length < 20)
+            throw new RuntimeException("Not long enough");
+        return DatatypeConverter.printHexBinary(Arrays.copyOfRange(array, 0, 20));
     }
 
     public void savePatch(InputStream patch, BuildManifest manifest) throws IOException {
         File outputFile = new File("patch");
         outputFile.mkdir();
         extractInputstream(patch, outputFile);
+    }
+
+    private void updateProgressBar(double percent){
+        Platform.runLater(() -> {download.getSecond().setProgress(percent); LOG.info(String.valueOf(percent));});
     }
 
     public void applyPatch(InputStream patch, BuildManifest manifest) throws IOException {
@@ -254,7 +334,6 @@ public class ProcelioLauncher extends Application {
                         continue;
                     }
                     byte[] oldBytes = Files.readAllBytes(gameDir.toPath().resolve(gameDirFile));
-                    //byte[] assertPatchBytes = Files.readAllBytes(Paths.get("ProcelioServer/gameBuilds/patches/diff-" + new Version(packageManifest.fromVersion) + "-" + new Version(packageManifest.toVersion) + "/").resolve(fileName));
                     try (ByteArrayOutputStream patchStream = new ByteArrayOutputStream()) {
                         readEntry(zipStream, buffer, patchStream);
                         OutputStream patchedOut = new FileOutputStream(toPatch, false);
@@ -266,9 +345,6 @@ public class ProcelioLauncher extends Application {
                         LOG.error("Patch Error", e);
                     }
                 } else {
-                    if (packageManifest.delete.contains(fileName)) {
-                        LOG.info("Ignoring {}", fileName);
-                    }
                     File newFile = new File(gameDir, fileName);
                     new File(newFile.getParent()).mkdirs();
                     if (entry.isDirectory())
@@ -292,6 +368,19 @@ public class ProcelioLauncher extends Application {
                     LOG.warn("Cannot delete file {}", toDelete.getAbsolutePath());
 
             }
+
+            for (String hashAndFile : packageManifest.filesAndHashes){
+                String hash = hashAndFile.substring(0, 32);
+                String file = hashAndFile.substring(32, hashAndFile.length());
+                MessageDigest hasher = Hashing.getMessageDigest();
+                if(hasher == null) return;
+                DigestInputStream digest = new DigestInputStream(new FileInputStream(new File(gameDir, file)), hasher);
+                while(digest.read(buffer) != -1){}
+                String fileHash = DatatypeConverter.printHexBinary(hasher.digest());
+                if(!hash.equals(fileHash)){
+                    LOG.info("Hashes for file {} do not match. Manifest - {}, File - {}", new File(gameDir, file), hash, fileHash);
+                }
+            }
         }
     }
 
@@ -302,28 +391,30 @@ public class ProcelioLauncher extends Application {
         }
     }
 
-    public void freshBuild() throws IOException, UnirestException {
+    public void freshBuild() throws IOException {
         LOG.info("Making fresh build");
         if (!gameDir.exists())
             gameDir.mkdir();
         else
+            //todo: ignore ignored
             FileUtils.deleteRecursive(gameDir);
-        InputStream hashes = wrapper.getFile(backendEndpoint + "/launcher/build");
+        download.getFirst().setText("Downloading Build");
+        InputStream hashes = wrapper.getFile(backendEndpoint + "/launcher/build", this::updateProgressBar);
         extractInputstream(hashes, gameDir);
         //LOG.info("Server: {} -> Client: {}", hashes.getSecond().getFirst(), DatatypeConverter.printHexBinary(hashes.getSecond().getSecond().digest()));
     }
 
     public void launchFile(File executable) throws IOException {
-        Server[] servers;
-        try {
-            servers = wrapper.getServers();
-        } catch (UnirestException e) {
-            e.printStackTrace();
-            return;
-        }
         LOG.info("Launching " + executable.getAbsolutePath());
         LOG.info(Files.readAllLines(executable.toPath()).toString());
         executable.setExecutable(true, true);
+        Server[] servers;
+        try {
+            servers = wrapper.getServers();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
         Process game = new ProcessBuilder(executable.getAbsolutePath(), servers[0].hostname).directory(gameDir).inheritIO().start();
         LOG.info(executable.getAbsolutePath() + " Exited");
     }

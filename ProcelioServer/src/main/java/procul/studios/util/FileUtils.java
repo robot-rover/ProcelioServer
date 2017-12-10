@@ -4,9 +4,6 @@ import java.io.File;
 import java.nio.file.Path;
 
 public class FileUtils {
-    public static Path pathRelativeTo(Path file, Path relativeTo){
-        return file.subpath(relativeTo.getNameCount(), file.getNameCount());
-    }
 
     public static void deleteRecursive(File dir){
         for(File f : dir.listFiles()){

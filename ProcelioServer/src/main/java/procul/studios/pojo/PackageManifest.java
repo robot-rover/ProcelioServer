@@ -9,20 +9,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PackageManifest {
+    public List<String> filesAndHashes;
+    public List<String> ignore;
     public List<String> delete;
     public Integer[] toVersion;
     public Integer[] fromVersion;
-    public List<String> ignore;
     public String newExec;
 
-    @Expose(serialize = false, deserialize = false)
     private transient File baseDir;
     public PackageManifest(File baseDir, Tuple<Version, Version> bridge){
         delete = new ArrayList<>();
-        ignore = new ArrayList<>();
         this.baseDir = baseDir;
         this.fromVersion = bridge.getFirst().toArray();
         this.toVersion = bridge.getSecond().toArray();
+        this.ignore = new ArrayList<>();
+        filesAndHashes = new ArrayList<>();
     }
 
     public File getBaseDir(){
