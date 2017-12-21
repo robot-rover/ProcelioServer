@@ -11,7 +11,7 @@ public class Robot {
         this.partList = partList;
     }
 
-    public Robot(){};
+    public Robot(){}
 
     public Robot setIDtoNext(List<Robot> current){
         int max = 0;

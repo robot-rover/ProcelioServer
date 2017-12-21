@@ -1,11 +1,11 @@
 package procul.studios.util;
 
-public class HashMissmatchException extends Exception {
-    public HashMissmatchException(String file){
+public class HashMismatchException extends Exception {
+    public HashMismatchException(String file){
         super("Unable to download " + file + " correctly");
     }
 
-    public HashMissmatchException(String file, String expected, String actual){
+    public HashMismatchException(String file, String expected, String actual){
         super("Unable to download " + file + " correctly. Expected - " + expected + ", Actual - " + actual);
     }
 }

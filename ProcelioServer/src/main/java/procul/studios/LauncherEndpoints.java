@@ -1,10 +1,9 @@
 package procul.studios;
 
+import io.sigpipe.jbsdiff.Diff;
 import procul.studios.pojo.response.LauncherDownload;
-import procul.studios.util.FileUtils;
-import procul.studios.util.Pack;
-import procul.studios.util.Tuple;
-import procul.studios.util.Version;
+import procul.studios.pojo.response.Message;
+import procul.studios.util.*;
 import spark.Request;
 
 import spark.Response;
@@ -27,11 +26,27 @@ public class LauncherEndpoints {
     private static final Pattern packagePattern = Pattern.compile("(\\d+)\\.(\\d+)\\.(\\d+)-(\\d+)\\.(\\d+)\\.(\\d+)");
     private static final Pattern versionPattern = Pattern.compile("(\\d+)\\.(\\d+)\\.(\\d+)");
     Configuration config;
-    DiffManager differ;
 
-    public LauncherEndpoints(Configuration config, DiffManager differ){
+    public LauncherEndpoints(Configuration config){
         this.config = config;
-        this.differ = differ;
+    }
+
+    private DiffManager getDiffer(Request req){
+        if(req.headers("X-Operating-System") == null){
+            ex("Missing Operating System Header", 400);
+        }
+        int osIndex = 0;
+        try {
+            if ((osIndex = Integer.parseInt(req.headers("X-Operating-System"))) >= OperatingSystem.values().length) {
+                ex("Invalid Operating System Value", 400);
+            }
+        } catch (NumberFormatException e){
+            ex("Invalid Operating System Value", 400);
+        }
+        DiffManager differ = DiffManager.diffManagers.get(OperatingSystem.values()[osIndex]);
+        if(differ == null)
+            ex("Unsupported Operating System", 400);
+        return differ;
     }
 
     public String getConfig(Request req, Response res){
@@ -45,6 +60,7 @@ public class LauncherEndpoints {
         if(filePath == null || filePath.length < 1 || filePath[0] == null){
             return ex("No File Specified", 400);
         }
+        DiffManager differ = getDiffer(req);
         Path requestedFile = differ.buildDir.toPath().resolve("build-" + buildVersion.toString()).resolve(filePath[0]);
         if(!requestedFile.normalize().startsWith(differ.buildDir.toPath())) {
             return ex(requestedFile.toString() + " is not a valid file", 400);
@@ -85,9 +101,9 @@ public class LauncherEndpoints {
 
     public Object fullBuild(Request req, Response res){
         res.header("Content-Type", "application/zip");
-        res.header("Content-MD5", DatatypeConverter.printHexBinary(differ.getNewestBuild().hash));
+        res.header("Content-MD5", DatatypeConverter.printHexBinary(getDiffer(req).getNewestBuild().hash));
         try (OutputStream out = res.raw().getOutputStream();
-             InputStream in = new FileInputStream(differ.getNewestBuild().zip)){
+             InputStream in = new FileInputStream(getDiffer(req).getNewestBuild().zip)){
             IOUtils.copyLarge(in, out);
         } catch (IOException e) {
             e.printStackTrace();
@@ -98,7 +114,7 @@ public class LauncherEndpoints {
     public Object getPatch(Request req, Response res){
         String version = req.params(":patch");
         Tuple<Version, Version> patchVersion = getPatchVersion(version);
-        Pack pack = differ.getPackages().stream().filter(v -> v.bridge.equals(patchVersion)).findAny().orElse(null);
+        Pack pack = getDiffer(req).getPackages().stream().filter(v -> v.bridge.equals(patchVersion)).findAny().orElse(null);
         if(pack == null)
             return ex("Patch could not be found", 404);
         res.header("Content-Type", "application/zip");
@@ -119,9 +135,9 @@ public class LauncherEndpoints {
         if (currentVersionString == null)
             return gson.toJson(new LauncherDownload("/launcher/build", false, config.launcherConfig.launcherVersion));
         Version currentVersion = getVersion(currentVersionString);
-        List<Pack> packages = differ.getPackages();
+        List<Pack> packages = getDiffer(req).getPackages();
         List<Tuple<Version, Version>> neededPackages = new ArrayList<>();
-        Version goal = differ.getNewestVersion();
+        Version goal = getDiffer(req).getNewestVersion();
         boolean upToDate = currentVersion.equals(goal);
         LauncherDownload result = new LauncherDownload("/launcher/build", upToDate, config.launcherConfig.launcherVersion);
         if(upToDate)

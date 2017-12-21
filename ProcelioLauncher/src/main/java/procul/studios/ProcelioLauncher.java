@@ -53,36 +53,40 @@ import java.util.zip.ZipInputStream;
 
 import static procul.studios.EndpointWrapper.gson;
 
+/**
+ * Main Class for the Procelio Game Launcher
+ */
 public class ProcelioLauncher extends Application {
-
     private static final Logger LOG = LoggerFactory.getLogger(ProcelioLauncher.class);
-    public static final Version launcherVersion = new Version(0, 0, 0);
-    public static final String backendEndpoint = /*"https://api.sovietbot.xyz"*/ "http://localhost";
-    public Tuple<Label, ProgressBar> download;
-    public TabPane selectView;
-    public File gameDir = new File("ProcelioGame");
-    public boolean launcherOutOfDate = false;
-    public Service<Void> updateService = new UpdateService();
-    public Stage primaryStage;
 
-    class UpdateService extends Service<Void> {
-        @Override
-        protected Task<Void> createTask() {
-            return new Task<Void>() {
-                @Override
-                protected Void call() throws Exception {
-                    launchGame();
-                    return null;
-                }
-            };
-        }
-    }
+    /**
+     * Constant determines the version of the launcher build
+     */
+    private static final Version launcherVersion = new Version(0, 0, 1);
+    /**
+     * Constant determines the endpoint for the Procelio Backend
+     */
+    static final String backendEndpoint = /*"https://api.sovietbot.xyz"*/ "http://localhost";
+    // Used for callbacks updating progress of a download or patch
+    private Tuple<Label, ProgressBar> download;
+    // Used for callback to change visible tab
+    private TabPane selectView;
+    /**
+     * Directory to install the game
+     */
+    private File gameDir = new File("ProcelioGame");
+    // Set by the launcher version check
+    private boolean launcherOutOfDate = false;
+    // Background Thread that runs download and diffing
+    private Service<Void> updateService = new UpdateService();
+    // Used for callback for window operations
+    private Stage primaryStage;
+
+    private EndpointWrapper wrapper;
 
     public static void main(String[] args) {
         launch(args);
     }
-
-    private EndpointWrapper wrapper;
 
     @Override
     public void start(Stage primaryStage) throws UnirestException, NoSuchAlgorithmException, CloneNotSupportedException {
@@ -168,12 +172,12 @@ public class ProcelioLauncher extends Application {
         StackPane lineHolder = new StackPane(new Line(0, 0, 50, 0));
         lineHolder.setAlignment(Pos.CENTER);
         updateArea.getChildren().add(lineHolder);
-        if(updates != null)
-            for(LauncherConfiguration.Update update : updates){
+        if (updates != null)
+            for (LauncherConfiguration.Update update : updates) {
                 HBox entry = new HBox();
                 entry.setPadding(new Insets(10));
                 entry.setSpacing(10);
-                if(update.image != null){
+                if (update.image != null) {
                     try {
                         ImageView updateIcon = new ImageView(wrapper.getImage(update.image));
                         updateIcon.setSmooth(true);
@@ -185,14 +189,14 @@ public class ProcelioLauncher extends Application {
                     }
                 }
                 TextFlow description = new TextFlow();
-                if(update.version != null && update.version.length == 3){
+                if (update.version != null && update.version.length == 3) {
                     Text version = new Text("Version " + update.version[0] + "." + update.version[1] + "." + update.version[2] + "\n");
                     version.setFont(Font.font(20));
                     description.getChildren().add(version);
                 }
                 description.getChildren().add(new Text(update.description));
 
-                if(update.hyperlink != null){
+                if (update.hyperlink != null) {
                     Text link = new Text("\n" + update.hyperlink);
                     link.setOnMouseClicked((MouseEvent event) -> {
                         openBrowser(update.hyperlink);
@@ -204,7 +208,7 @@ public class ProcelioLauncher extends Application {
                 updateArea.getChildren().add(entry);
 
 
-                StackPane lineHolderCopy = new StackPane(new Line(0,0,50,0));
+                StackPane lineHolderCopy = new StackPane(new Line(0, 0, 50, 0));
                 lineHolder.setAlignment(Pos.CENTER);
                 updateArea.getChildren().add(lineHolderCopy);
             }
@@ -243,12 +247,16 @@ public class ProcelioLauncher extends Application {
 
     }
 
+    /**
+     * Opens a link in the user's browser
+     * @param url the URL to open
+     */
     public void openBrowser(String url) {
         try {
-            if (System.getProperty("os.name", "generic").toLowerCase(Locale.ENGLISH).contains("nux")) {
+            LOG.info("Opening " + url);
+            if (System.getProperty("os.name", "generic").toLowerCase(Locale.ENGLISH).contains("nux")) { // Desktop class can be buggy for Linux, thus this workaround
                 Runtime.getRuntime().exec(new String[]{"xdg-open", url});
             } else if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-                LOG.info("Opening " + url);
                 Desktop.getDesktop().browse(new URI(url));
             } else {
                 //todo: allow copy paste if unsupported
@@ -259,25 +267,31 @@ public class ProcelioLauncher extends Application {
         }
     }
 
-    public void launchClick(ActionEvent e) {
-        if(updateService.getState().equals(Worker.State.RUNNING) || updateService.getState().equals(Worker.State.SCHEDULED)) {
+    //Listener for click on Launch Button
+    private void launchClick(ActionEvent e) {
+        if (updateService.getState().equals(Worker.State.RUNNING) || updateService.getState().equals(Worker.State.SCHEDULED)) {
             LOG.warn("Unable to start updateService. Current State: {}", updateService.getState());
         } else {
             updateService.restart();
         }
     }
 
+    /**
+     * Gets the game ready to run and then launches it
+     */
     public void launchGame() {
-        if(launcherOutOfDate){
+        if (launcherOutOfDate) { // Don't allow the user to use a launcher that's out of date
             FX.dialog("Launcher Out of Date", "You need to download a new version of the launcher!", Alert.AlertType.INFORMATION);
             return;
         }
         BuildManifest manifest = null;
         try {
+            // if a manifest exists, load it
             if (gameDir.exists() && new File(gameDir, "manifest.json").exists()) {
                 manifest = EndpointWrapper.gson.fromJson(new FileReader(new File(gameDir, "manifest.json")), BuildManifest.class);
             }
 
+            // if a manifest doesn't exist or isn't valid, download a fresh install of the game and then launch
             if (!gameDir.exists() || !new File(gameDir, "manifest.json").exists() || manifest == null || manifest.exec == null || manifest.version == null) {
                 freshBuild();
                 manifest = EndpointWrapper.gson.fromJson(new InputStreamReader(new FileInputStream(new File(gameDir, "manifest.json"))), BuildManifest.class);
@@ -288,37 +302,53 @@ public class ProcelioLauncher extends Application {
             FX.dialog("Connection Error", "Unable to download game\n" + e.getMessage(), Alert.AlertType.ERROR);
             LOG.warn("Error downloading and starting game", e);
             return;
-        } catch (HashMissmatchException e){
+        } catch (HashMismatchException e) {
             FX.dialog("Hash Mismatch", "Downloaded build but the file was fragmented", Alert.AlertType.ERROR);
-            LOG.warn("Hash Missmatch", e);
+            LOG.warn("Hash Mismatch", e);
             return;
         }
+
+        // Didn't need a fresh build of the game, so we can attempt to patch
         try {
             try {
                 updateBuild(manifest);
-            } catch (IOException e){
+            } catch (IOException e) {
                 LOG.warn("Unable to connect to server");
-            } catch (HashMissmatchException e) {
-                FX.dialog("Hash Mismatch", "Downloaded build but the file was fragmented", Alert.AlertType.ERROR);
+            } catch (HashMismatchException e) {
+                FX.dialog("Hash Mismatch", "Downloaded build but the file was corrupted", Alert.AlertType.ERROR);
                 LOG.warn("Hash Missmatch", e);
             }
+
+            // even if patch failed, still run the game
             launchFile(new File(gameDir, manifest.exec));
-        } catch (IOException e){
-            FX.dialog("Unable to Lanch", "The launcher encountered an error and is unable to launch Procelio\n" + e.getMessage(), Alert.AlertType.ERROR);
+        } catch (IOException e) {
+            FX.dialog("Unable to Launch", "The launcher encountered an error and is unable to launch Procelio\n" + e.getMessage(), Alert.AlertType.ERROR);
             LOG.warn("Unable to launch game", e);
         }
     }
 
-    public void updateBuild(BuildManifest manifest) throws IOException, HashMissmatchException {
+    /**
+     * Attempt to patch the game
+     * @param manifest the build manifest of the current version
+     * @throws IOException if unable to contact backend server
+     * @throws HashMismatchException if a file was downloaded twice and was corrupted both times
+     */
+    public void updateBuild(BuildManifest manifest) throws IOException, HashMismatchException {
         LauncherDownload gameStatus = wrapper.checkForUpdates(new Version(manifest.version));
+
+        // if the versions match, the game is up to date
         if (gameStatus.upToDate) {
             LOG.info("All up to date");
             return;
         }
+
+        // if no patch path is available, only option is a fresh build
         if (gameStatus.patches == null) {
             freshBuild();
             return;
         }
+
+        // All set to patch
         LOG.info("Patching Build");
         for (String patch : gameStatus.patches) {
             updateProgressStatus("Downloading Patch " + patch);
@@ -327,24 +357,24 @@ public class ProcelioLauncher extends Application {
         }
     }
 
-    private String previewByteArray(byte[] array){
-        if(array.length < 20)
-            throw new RuntimeException("Not long enough");
-        return DatatypeConverter.printHexBinary(Arrays.copyOfRange(array, 0, 20));
-    }
-
     public void savePatch(InputStream patch, BuildManifest manifest) throws IOException {
         File outputFile = new File("patch");
         outputFile.mkdir();
-        extractInputstream(patch, outputFile);
+        FileUtils.extractInputstream(patch, outputFile);
     }
 
-    private void updateProgressBar(double percent){
-        Platform.runLater(() -> {download.getSecond().setProgress(percent); LOG.info(String.valueOf(percent));});
+    private void updateProgressBar(double percent) {
+        Platform.runLater(() -> {
+            download.getSecond().setProgress(percent);
+            LOG.info(String.valueOf(percent));
+        });
     }
 
-    private void updateProgressStatus(String status){
-        Platform.runLater(() -> {download.getFirst().setText(status); LOG.info(status);});
+    private void updateProgressStatus(String status) {
+        Platform.runLater(() -> {
+            download.getFirst().setText(status);
+            LOG.info(status);
+        });
     }
 
     public void applyPatch(InputStream patch, BuildManifest manifest) throws IOException {
@@ -412,15 +442,16 @@ public class ProcelioLauncher extends Application {
 
             }
 
-            for (String hashAndFile : packageManifest.filesAndHashes){
+            for (String hashAndFile : packageManifest.filesAndHashes) {
                 String hash = hashAndFile.substring(0, 32);
                 String file = hashAndFile.substring(32, hashAndFile.length());
                 MessageDigest hasher = Hashing.getMessageDigest();
-                if(hasher == null) return;
+                if (hasher == null) return;
                 DigestInputStream digest = new DigestInputStream(new FileInputStream(new File(gameDir, file)), hasher);
-                while(digest.read(buffer) != -1){}
+                while (digest.read(buffer) != -1) {
+                }
                 String fileHash = DatatypeConverter.printHexBinary(hasher.digest());
-                if(!hash.equals(fileHash)){
+                if (!hash.equals(fileHash)) {
                     LOG.info("Hashes for file {} do not match. Manifest - {}, File - {}", new File(gameDir, file), hash, fileHash);
                 }
             }
@@ -434,16 +465,15 @@ public class ProcelioLauncher extends Application {
         }
     }
 
-    public void freshBuild() throws IOException, HashMissmatchException {
+    public void freshBuild() throws IOException, HashMismatchException {
         LOG.info("Making fresh build");
         if (!gameDir.exists())
             gameDir.mkdir();
         else
-            //todo: ignore ignored
             FileUtils.deleteRecursive(gameDir);
         updateProgressStatus("Downloading Build /launcher/build");
         InputStream hashes = wrapper.getFile(backendEndpoint + "/launcher/build", this::updateProgressBar);
-        extractInputstream(hashes, gameDir);
+        FileUtils.extractInputstream(hashes, gameDir);
         //LOG.info("Server: {} -> Client: {}", hashes.getSecond().getFirst(), DatatypeConverter.printHexBinary(hashes.getSecond().getSecond().digest()));
     }
 
@@ -459,9 +489,9 @@ public class ProcelioLauncher extends Application {
             hostname = servers[0].hostname;
         } catch (IOException e) {
             hostname = "";
-            while(hostname.length() == 0){
+            while (hostname.length() == 0) {
                 hostname = FX.prompt("Unable to aquire Server", "Unable to automatically connect to game server,\n please specify a server address").orElse(null);
-                if(hostname == null)
+                if (hostname == null)
                     return;
             }
         }
@@ -473,24 +503,22 @@ public class ProcelioLauncher extends Application {
             LOG.warn("Unable to un-iconify", e);
         }
         LOG.info(executable.getAbsolutePath() + " Exited");
-        Platform.runLater(() -> {primaryStage.setIconified(false); primaryStage.toFront();});
+        Platform.runLater(() -> {
+            primaryStage.setIconified(false);
+            primaryStage.toFront();
+        });
     }
 
-    public static void extractInputstream(InputStream stream, File targetDir) throws IOException {
-        byte[] buffer = new byte[1024];
-        try (ZipInputStream zipStream = new ZipInputStream(stream)) {
-            ZipEntry entry = null;
-            while ((entry = zipStream.getNextEntry()) != null) {
-                String fileName = entry.getName();
-                File newFile = new File(targetDir, fileName);
-                new File(newFile.getParent()).mkdirs();
-                try (OutputStream out = new BufferedOutputStream(new FileOutputStream(newFile))) {
-                    int len;
-                    while ((len = zipStream.read(buffer)) > 0) {
-                        out.write(buffer, 0, len);
-                    }
+    class UpdateService extends Service<Void> {
+        @Override
+        protected Task<Void> createTask() {
+            return new Task<Void>() {
+                @Override
+                protected Void call() throws Exception {
+                    launchGame();
+                    return null;
                 }
-            }
+            };
         }
     }
 }

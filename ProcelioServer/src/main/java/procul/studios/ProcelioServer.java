@@ -12,6 +12,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.Timer;
 
@@ -29,17 +31,20 @@ public class ProcelioServer {
     public static void main(String[] args){
         Configuration config = Configuration.loadConfiguration(configFile);
         if (args.length > 0) {
-            DiffManager differ = new DiffManager(config);
+            List<DiffManager> differs = new ArrayList<>();
+            for(File osDir : new File(config.buildFolderPath).listFiles()){
+                differs.add(new DiffManager(config, osDir));
+            }
             if(args[0].equals("diff"))
-                differ.createPatches();
+                differs.forEach(DiffManager::createPatches);
             else if(args[0].equals("rediff")) {
-                differ.clearPatches();
-                differ.createPatches();
+                differs.forEach(DiffManager::clearPatches);
+                differs.forEach(DiffManager::createPatches);
             } else if(args[0].equals("package")) {
-                differ.generatePackages();
+                differs.forEach(DiffManager::generatePackages);
             } else if(args[0].equals("repackage")) {
-                differ.clearPatches();
-                differ.generatePackages();
+                differs.forEach(DiffManager::clearPatches);
+                differs.forEach(DiffManager::generatePackages);
             } else if(args[0].equals("init")){
                 String configText = Configuration.gson.toJson(config);
                 try (FileWriter out = new FileWriter(configFile, false)) {
@@ -56,13 +61,16 @@ public class ProcelioServer {
             config.launcherConfig = LauncherConfiguration.loadConfiguration(new File(config.launcherConfigPath));
         if(config.partConfig == null)
             config.partConfig = PartConfiguration.loadConfiguration(new File(config.partConfigPath));
-        DiffManager differ = new DiffManager(config);
-        differ.generatePackages();
+        List<DiffManager> differs = new ArrayList<>();
+        for(File osDir : new File(config.buildFolderPath).listFiles()){
+            differs.add(new DiffManager(config, osDir));
+        }
+        differs.forEach(DiffManager::generatePackages);
         Database database = new Database(config);
         AtomicDatabase atomicDatabase = new AtomicDatabase(database.getContext());
         ClientEndpoints clientWrapper = new ClientEndpoints(database.getContext(), config, atomicDatabase);
         ServerEndpoints serverWrapper = new ServerEndpoints(database.getContext(), config, atomicDatabase);
-        LauncherEndpoints launcherWrapper = new LauncherEndpoints(config, differ);
+        LauncherEndpoints launcherWrapper = new LauncherEndpoints(config);
         serverStatus = new Server[config.serverLocation.length];
         if(config.serverKeepAlive)
             ServerDaemon.startDaemon(60000L, new ServerDaemon(config.serverLocation, serverStatus));

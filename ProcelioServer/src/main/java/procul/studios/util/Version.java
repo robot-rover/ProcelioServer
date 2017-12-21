@@ -1,7 +1,5 @@
 package procul.studios.util;
 
-import procul.studios.DiffManager;
-
 public class Version implements Comparable<Version> {
     int major;
     int minor;

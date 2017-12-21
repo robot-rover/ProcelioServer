@@ -28,6 +28,7 @@ import java.util.regex.Pattern;
 import static procul.studios.ProcelioServer.gson;
 
 public class DiffManager {
+    public static final Map<OperatingSystem, DiffManager> diffManagers = new HashMap<>();
     private static final Logger LOG = LoggerFactory.getLogger(DiffManager.class);
     private static final Pattern buildPattern = Pattern.compile("build-(\\d+)\\.(\\d+)\\.(\\d+)");
     private static final Pattern packagePattern = Pattern.compile("diff-(\\d+)\\.(\\d+)\\.(\\d+)-(\\d+)\\.(\\d+)\\.(\\d+).zip");
@@ -39,24 +40,23 @@ public class DiffManager {
     private List<Pack> packages;
     private Pack currentBuild;
     private boolean hasDiffed;
-    public DiffManager(Configuration config){
+    public DiffManager(Configuration config, File osDir){
         hasDiffed = false;
         params.setCompressionMethod(Zip4jConstants.COMP_DEFLATE);
         params.setCompressionLevel(Zip4jConstants.DEFLATE_LEVEL_NORMAL);
-        File diffManagerDir = new File(config.buildFolderPath);
-        if(!diffManagerDir.exists() && !diffManagerDir.mkdir())
+        if(!osDir.exists() && !osDir.mkdir())
             throw new RuntimeException("Unable to create Diff Directory");
-        diffDir = new File(config.buildFolderPath, "patches");
+        diffDir = new File(osDir, "patches");
         if(!diffDir.exists() && !diffDir.mkdir())
             throw new RuntimeException("Unable to create Patch Directory");
         if(!diffDir.isDirectory())
             throw new RuntimeException("Diff Directory is a File!");
-        buildDir = new File(config.buildFolderPath, "builds");
+        buildDir = new File(osDir, "builds");
         if(!buildDir.exists() && !buildDir.mkdir())
             throw new RuntimeException("Unable to create Build Directory");
         if(!buildDir.isDirectory())
             throw new RuntimeException("Build Directory is a File!");
-        zipDir = new File(config.buildFolderPath, "package");
+        zipDir = new File(osDir, "package");
         if(!zipDir.exists() && !zipDir.mkdir())
             throw new RuntimeException("Unable to create Zip Directory");
         if(!zipDir.isDirectory())
@@ -71,6 +71,9 @@ public class DiffManager {
         }
         versions.sort(Comparator.comparing(Tuple::getFirst));
         packages = new ArrayList<>();
+        OperatingSystem os = OperatingSystem.parse(osDir.getName());
+        LOG.info("DiffManager loaded for {}", os.name());
+        diffManagers.put(os, this);
     }
 
     public List<Tuple<Version, File>> getVersions() {
