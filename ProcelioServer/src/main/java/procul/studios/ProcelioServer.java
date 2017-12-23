@@ -62,7 +62,10 @@ public class ProcelioServer {
         if(config.partConfig == null)
             config.partConfig = PartConfiguration.loadConfiguration(new File(config.partConfigPath));
         List<DiffManager> differs = new ArrayList<>();
-        for(File osDir : new File(config.buildFolderPath).listFiles()){
+        File buildFolder = new File(config.buildFolderPath);
+        if(!buildFolder.exists())
+            buildFolder.mkdir();
+        for(File osDir : buildFolder.listFiles()){
             differs.add(new DiffManager(config, osDir));
         }
         differs.forEach(DiffManager::generatePackages);

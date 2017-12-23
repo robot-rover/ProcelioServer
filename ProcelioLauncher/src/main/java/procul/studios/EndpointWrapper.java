@@ -1,6 +1,7 @@
 package procul.studios;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
@@ -13,7 +14,6 @@ import procul.studios.pojo.response.LauncherDownload;
 import procul.studios.util.HashMismatchException;
 import procul.studios.util.OperatingSystem;
 import procul.studios.util.Version;
-import sun.misc.Request;
 
 import javax.xml.bind.DatatypeConverter;
 import java.io.*;
@@ -40,10 +40,10 @@ public class EndpointWrapper {
         HttpResponse<String> response = null;
         try {
             response = Unirest.get(backendEndpoint + "/launcher/config").asString();
-        } catch (UnirestException e) {
+            return (config = gson.fromJson(response.getBody(), LauncherConfiguration.class));
+        } catch (UnirestException | JsonSyntaxException e) {
             throw new IOException(e);
         }
-        return (config = gson.fromJson(response.getBody(), LauncherConfiguration.class));
     }
 
     public LauncherDownload checkForUpdates(Version currentVersion) throws IOException {
@@ -88,7 +88,7 @@ public class EndpointWrapper {
             URL url = new URL(path);
             HttpURLConnection httpConnection = (HttpURLConnection) (url.openConnection());
             httpConnection.setRequestProperty(osHeaderKey, osHeaderValue.getIndex());
-            long completeFileSize = httpConnection.getContentLength();
+            long completeFileSize = httpConnection.getContentLengthLong();
             File tempFile = File.createTempFile("procelioLauncher", null);
             LOG.info("TempFile for {}: {} - Size: {}", path, tempFile.getAbsoluteFile(), completeFileSize);
         MessageDigest md5 = null;
@@ -104,7 +104,7 @@ public class EndpointWrapper {
             try (BufferedInputStream in = new BufferedInputStream(new DigestInputStream(httpConnection.getInputStream(), md5));
                  BufferedOutputStream buff = new BufferedOutputStream(new FileOutputStream(tempFile, false))) {
                 LOG.info("Downloading {} with {} tries left", path, triesLeft);
-                byte[] data = new byte[1024*10];
+                byte[] data = new byte[1024*64];
                 long downloadedFileSize = 0;
                 int x = 0;
                 while ((x = in.read(data)) >= 0) {

@@ -3,6 +3,8 @@ version 'main'
 
 apply plugin: 'java'
 
+apply plugin: 'com.github.johnrengelman.shadow'
+
 sourceCompatibility = 1.8
 
 repositories {
@@ -35,4 +37,16 @@ dependencies {
 buildscript {
     repositories { jcenter() }
     dependencies { classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1' }
+}
+
+shadowJar {
+    baseName = 'ProcelioLauncher'
+    classifier = null
+    version = null
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'procul.studios.ProcelioLauncher'
+    }
 }

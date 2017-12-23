@@ -66,11 +66,13 @@ public class ProcelioLauncher extends Application {
     /**
      * Constant determines the endpoint for the Procelio Backend
      */
-    static final String backendEndpoint = /*"https://api.sovietbot.xyz"*/ "http://localhost";
+    static final String backendEndpoint = "https://api.sovietbot.xyz";
     // Used for callbacks updating progress of a download or patch
     private Tuple<Label, ProgressBar> download;
     // Used for callback to change visible tab
     private TabPane selectView;
+    private Tab downloadsTab;
+    private Tab updatesTab;
     /**
      * Directory to install the game
      */
@@ -154,8 +156,8 @@ public class ProcelioLauncher extends Application {
         selectView = new TabPane();
         selectView.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
 
-        Tab updateList = new Tab();
-        updateList.setText("Updates");
+        updatesTab = new Tab();
+        updatesTab.setText("Updates");
         ScrollPane updateScroller = new ScrollPane();
         updateScroller.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         updateScroller.setVbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS);
@@ -213,11 +215,11 @@ public class ProcelioLauncher extends Application {
                 updateArea.getChildren().add(lineHolderCopy);
             }
         updateScroller.contentProperty().setValue(updateArea);
-        updateList.setContent(updateScroller);
-        selectView.getTabs().add(updateList);
+        updatesTab.setContent(updateScroller);
+        selectView.getTabs().add(updatesTab);
 
-        Tab updateProgress = new Tab();
-        updateProgress.setText("Download");
+        downloadsTab = new Tab();
+        downloadsTab.setText("Download");
         VBox downloadContent = new VBox();
         downloadContent.setAlignment(Pos.CENTER);
         downloadContent.setSpacing(10);
@@ -229,9 +231,9 @@ public class ProcelioLauncher extends Application {
         downloadContent.getChildren().add(downloadProgress);
         Label downloadStatus = new Label("No download in progress");
         downloadContent.getChildren().add(downloadStatus);
-        updateProgress.setContent(downloadContent);
+        downloadsTab.setContent(downloadContent);
         download = new Tuple<>(downloadStatus, downloadProgress);
-        selectView.getTabs().add(updateProgress);
+        selectView.getTabs().add(downloadsTab);
         root.centerProperty().setValue(selectView);
 
         try {
@@ -352,6 +354,7 @@ public class ProcelioLauncher extends Application {
         LOG.info("Patching Build");
         for (String patch : gameStatus.patches) {
             updateProgressStatus("Downloading Patch " + patch);
+            selectView.getSelectionModel().select(downloadsTab);
             InputStream input = wrapper.getFile(backendEndpoint + patch, this::updateProgressBar);
             applyPatch(input, manifest);
         }
@@ -366,14 +369,13 @@ public class ProcelioLauncher extends Application {
     private void updateProgressBar(double percent) {
         Platform.runLater(() -> {
             download.getSecond().setProgress(percent);
-            LOG.info(String.valueOf(percent));
         });
     }
 
     private void updateProgressStatus(String status) {
         Platform.runLater(() -> {
             download.getFirst().setText(status);
-            LOG.info(status);
+            LOG.info("Download Status: {}", status);
         });
     }
 
@@ -472,18 +474,19 @@ public class ProcelioLauncher extends Application {
         else
             FileUtils.deleteRecursive(gameDir);
         updateProgressStatus("Downloading Build /launcher/build");
+        selectView.getSelectionModel().select(downloadsTab);
         InputStream hashes = wrapper.getFile(backendEndpoint + "/launcher/build", this::updateProgressBar);
         FileUtils.extractInputstream(hashes, gameDir);
-        //LOG.info("Server: {} -> Client: {}", hashes.getSecond().getFirst(), DatatypeConverter.printHexBinary(hashes.getSecond().getSecond().digest()));
     }
 
     public void launchFile(File executable) throws IOException {
         updateProgressStatus("Launching ProcelioGame");
         LOG.info("Launching " + executable.getAbsolutePath());
-        LOG.info(Files.readAllLines(executable.toPath()).toString());
-        executable.setExecutable(true, true);
+        executable.setExecutable(true, false);
+        executable.setReadable(true);
         Server[] servers;
         String hostname = null;
+        LOG.info(Arrays.toString(executable.getParentFile().list()));
         try {
             servers = wrapper.getServers();
             hostname = servers[0].hostname;
@@ -495,7 +498,8 @@ public class ProcelioLauncher extends Application {
                     return;
             }
         }
-        Process game = new ProcessBuilder(executable.getAbsolutePath(), hostname).directory(gameDir).inheritIO().start();
+        LOG.info("Running {} in directory {} - Exists: {}", gameDir.toPath().relativize(executable.toPath()), gameDir, executable.exists());
+        Process game = new ProcessBuilder(executable.getAbsolutePath(), hostname, "-client").directory(gameDir).inheritIO().start();
         Platform.runLater(() -> primaryStage.setIconified(true));
         try {
             game.waitFor();

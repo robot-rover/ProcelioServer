@@ -66,7 +66,7 @@ public class SparkServer {
 
         //Launcher Endpoints
         get("/launcher/config", launcher::getConfig);
-        get("/launcher/logo", launcher::getLogo);
+        //get("/launcher/logo", launcher::getLogo);
         get("/launcher", launcher::getPatchList);
         get("/launcher/build", launcher::fullBuild);
         get("/launcher/:patch", launcher::getPatchList);

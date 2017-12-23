@@ -17,7 +17,6 @@ public class Configuration {
     //if someone has access to the server filesystem you have bigger problems
     public boolean serverKeepAlive;
     public String keystorePassB64;
-    public String url;
     public String keystorePath;
     public int port;
     public String[] serverLocation;
@@ -30,10 +29,6 @@ public class Configuration {
     public PartConfiguration partConfig;
     public LauncherConfiguration launcherConfig;
     public String launcherConfigPath;
-
-
-    public String iconPath;
-    public String logoPath;
 
     //use own gson for pretty printing
     static Gson gson = new GsonBuilder().setPrettyPrinting().create();

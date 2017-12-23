@@ -77,7 +77,7 @@ public class LauncherEndpoints {
         return res.raw();
     }
 
-    public Object getIcon(Request req, Response res){
+    /*public Object getIcon(Request req, Response res){
         res.header("Content-Type","image/" + FileUtils.getFileExtension(config.iconPath));
         try (OutputStream out = res.raw().getOutputStream();
              InputStream in = new FileInputStream(config.iconPath)){
@@ -89,7 +89,7 @@ public class LauncherEndpoints {
     }
 
     public Object getLogo(Request req, Response res){
-        res.header("Content-Type","image/" + FileUtils.getFileExtension(config.logoPath));
+        res.header("Content-Type","image/png");
         try (OutputStream out = res.raw().getOutputStream();
              InputStream in = new FileInputStream(config.logoPath)){
             IOUtils.copyLarge(in, out);
@@ -97,11 +97,12 @@ public class LauncherEndpoints {
             e.printStackTrace();
         }
         return res.raw();
-    }
+    }*/
 
     public Object fullBuild(Request req, Response res){
         res.header("Content-Type", "application/zip");
         res.header("Content-MD5", DatatypeConverter.printHexBinary(getDiffer(req).getNewestBuild().hash));
+        res.header("Content-Length", String.valueOf(getDiffer(req).getNewestBuild().length));
         try (OutputStream out = res.raw().getOutputStream();
              InputStream in = new FileInputStream(getDiffer(req).getNewestBuild().zip)){
             IOUtils.copyLarge(in, out);

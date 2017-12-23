@@ -40,6 +40,7 @@ public class DiffManager {
     private List<Pack> packages;
     private Pack currentBuild;
     private boolean hasDiffed;
+    private boolean buildsExist;
     public DiffManager(Configuration config, File osDir){
         hasDiffed = false;
         params.setCompressionMethod(Zip4jConstants.COMP_DEFLATE);
@@ -62,17 +63,21 @@ public class DiffManager {
         if(!zipDir.isDirectory())
             throw new RuntimeException("Zip Directory is a File!");
         File[] builds = buildDir.listFiles(File::isDirectory);
+        OperatingSystem os = OperatingSystem.parse(osDir.getName());
+        LOG.info("DiffManager loaded for {}", os.name());
+        LOG.info("Found {} builds in {}", builds.length, buildDir.getAbsolutePath());
+        buildsExist = builds.length != 0;
         versions = new ArrayList<>();
         for(File build : builds){
             Matcher m = buildPattern.matcher(build.getName());
             if(!m.find())
                 throw new RuntimeException("Unable to parse version from build folder " + build.getAbsolutePath());
-            versions.add(new Tuple<>(new Version(m.group(1), m.group(2), m.group(3)), build));
+            Tuple<Version, File> versionTuple = new Tuple<>(new Version(m.group(1), m.group(2), m.group(3)), build);
+            versions.add(versionTuple);
+            LOG.info("\t{}", buildDir.toPath().relativize(versionTuple.getSecond().toPath()));
         }
         versions.sort(Comparator.comparing(Tuple::getFirst));
         packages = new ArrayList<>();
-        OperatingSystem os = OperatingSystem.parse(osDir.getName());
-        LOG.info("DiffManager loaded for {}", os.name());
         diffManagers.put(os, this);
     }
 
@@ -102,6 +107,8 @@ public class DiffManager {
     }
 
     public void createPatches(){
+        if(!buildsExist)
+            throw new RuntimeException("Cannot create patches without builds");
         Tuple<Version, File> from = null;
         for(Tuple<Version, File> version : versions){
             buildDiff(from, version);
@@ -149,32 +156,61 @@ public class DiffManager {
     }
 
     public void generatePackages(){
-        if(!hasDiffed)
+        if(!hasDiffed && buildsExist)
             createPatches();
-        for(File patch : diffDir.listFiles(File::isDirectory)){
-            File zipArc = new File(zipDir, patch.getName() + ".zip");
-            Pack currentPack = packages.stream().filter(v -> v.zip.equals(patch)).findAny().orElseThrow(() -> new RuntimeException("Cannot find version for diff " + patch.getAbsolutePath()));
-            currentPack.zip = zipArc;
-            zipFile(patch, zipArc);
-            LOG.info("Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
-            Tuple<byte[], Long> packData = hashFile(zipArc);
-            currentPack.hash = packData.getFirst();
-            currentPack.length = packData.getSecond();
+
+        versions = new ArrayList<>();
+        for(File build : (buildsExist ? buildDir : zipDir).listFiles()){
+            Matcher m = buildPattern.matcher(build.getName());
+            if(!m.find())
+                throw new RuntimeException("Unable to parse version from folder " + build.getAbsolutePath());
+            Tuple<Version, File> versionTuple = new Tuple<>(new Version(m.group(1), m.group(2), m.group(3)), build);
+            versions.add(versionTuple);
         }
-        if(versions.size() == 0)
-            throw new RuntimeException("No Builds to Diff!");
-        File newestBuild = new File(buildDir, "build-" + versions.get(versions.size()-1).getFirst());
-        if(!newestBuild.exists())
-            throw new RuntimeException("Newest build " + newestBuild.getAbsolutePath() + " doesn't exist to be zipped");
-        File zipArc = new File(zipDir, newestBuild.getName() + ".zip");
-        if(!zipArc.exists())
-            zipFile(newestBuild, zipArc);
-        else
-            LOG.info("Pack " + zipDir.toPath().relativize(zipArc.toPath()) + " already exists, skipping");
-        LOG.info("Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
-        Tuple<byte[], Long> packInfo = hashFile(zipArc);
-        currentBuild = new Pack(null, packInfo.getFirst(), zipArc);
-        currentBuild.length = packInfo.getSecond();
+
+        if(buildsExist) {
+            for (File patch : diffDir.listFiles(File::isDirectory)) {
+                File zipArc = new File(zipDir, patch.getName() + ".zip");
+                Pack currentPack = packages.stream().filter(v -> v.zip.equals(patch)).findAny().orElseThrow(() -> new RuntimeException("Cannot find version for diff " + patch.getAbsolutePath()));
+                currentPack.zip = zipArc;
+                zipFile(patch, zipArc);
+                LOG.info("Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
+                Tuple<byte[], Long> packData = hashFile(zipArc);
+                currentPack.hash = packData.getFirst();
+                currentPack.length = packData.getSecond();
+            }
+            File newestBuild = new File(buildDir, "build-" + versions.get(versions.size()-1).getFirst());
+            if(!newestBuild.exists())
+                throw new RuntimeException("Newest build " + newestBuild.getAbsolutePath() + " doesn't exist to be zipped");
+            File zipArc = new File(zipDir, newestBuild.getName() + ".zip");
+            if(!zipArc.exists())
+                zipFile(newestBuild, zipArc);
+            else
+                LOG.info("Pack " + zipDir.toPath().relativize(zipArc.toPath()) + " already exists, skipping");
+
+            LOG.info("Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
+            Tuple<byte[], Long> packInfo = hashFile(zipArc);
+            currentBuild = new Pack(null, packInfo.getFirst(), zipArc);
+            currentBuild.length = packInfo.getSecond();
+        } else {
+            for (File zipArc : zipDir.listFiles(File::isDirectory)) {
+                Matcher m = packagePattern.matcher(zipArc.getName());
+                LOG.info("Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
+                Tuple<byte[], Long> packData = hashFile(zipArc);
+                Pack currentPack = new Pack(new Tuple<>(new Version(m.group(1), m.group(2), m.group(3)), new Version(m.group(4), m.group(5), m.group(6))),
+                        packData.getFirst(), zipArc);
+                currentPack.length = packData.getSecond();
+                packages.add(currentPack);
+            }
+
+            File zipArc = new File(zipDir, "build-" + versions.get(versions.size()-1).getFirst() + ".zip");
+            LOG.info("Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
+            Tuple<byte[], Long> packInfo = hashFile(zipArc);
+            currentBuild = new Pack(null, packInfo.getFirst(), zipArc);
+            currentBuild.length = packInfo.getSecond();
+        }
+
+
     }
 
     private void buildDiff(Tuple<Version, File> from, Tuple<Version, File> to){
