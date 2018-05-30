@@ -1,7 +1,6 @@
 # Project Files
 procelio.db
 .idea
-gradle
 ProcelioServer/src/test/resources
 *.jks
 config.json
@@ -16,7 +15,6 @@ ProcelioGame
 ### Gradle template
 .gradle
 build/
-gradlew*
 
 # Ignore Gradle GUI config
 gradle-app.setting

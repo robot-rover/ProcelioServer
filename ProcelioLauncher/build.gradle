@@ -66,10 +66,12 @@ task compileModuleInfo(dependsOn: project.tasks.shadowJar) {
     project.ext.compModuleInfo = "${temporaryDir}/module-info.class"
     outputs.files project.ext.buildModuleInfo, project.ext.compModuleInfo
 
-    Files.copy(file(project.ext.sourceModuleInfo).toPath(), file(project.ext.buildModuleInfo).toPath(), StandardCopyOption.REPLACE_EXISTING)
-    exec {
-        executable project.ext.jdkHome + "/bin/" + "javac"
-        args = ['--patch-module', project.ext.moduleName + "=" + shadowJar.archivePath, project.ext.buildModuleInfo]
+    doLast {
+        Files.copy(file(project.ext.sourceModuleInfo).toPath(), file(project.ext.buildModuleInfo).toPath(), StandardCopyOption.REPLACE_EXISTING)
+        exec {
+            executable project.ext.jdkHome + "/bin/" + "javac"
+            args = ['--patch-module', project.ext.moduleName + "=" + shadowJar.archivePath, project.ext.buildModuleInfo]
+        }
     }
 }
 
@@ -104,7 +106,7 @@ def imageOS(String os, String jmodsDir) {
     delete outputDir
     exec {
         executable project.ext.jdkHome + "/bin/" + "jlink"
-        args = ['--module-path', ["${jmodsDir}/jmods", transformJar.archivePath.absolutePath].join(':'),
+        args = ['--module-path', ["${jmodsDir}/jmods", transformJar.archivePath.absolutePath].join(File.pathSeparator),
                 '--add-modules', project.ext.moduleName,
                 '--launcher', 'launch=' + project.ext.moduleName + '/' + project.ext.mainClassName,
                 '--output', outputDir,
@@ -127,10 +129,10 @@ task packageLauncher(dependsOn: transformJar) {
         exec {
             executable 'javapackager'
             args = ['-deploy',
-                    '-native', 'deb',
+                    '-native', 'installer',
                     '-outdir', outputDir,
                     '-name', project.name,
-                    '--module-path', [project.jdkHome + "/jmods", transformJar.archivePath.parent].join(':'),
+                    '--module-path', [project.jdkHome + "/jmods", transformJar.archivePath.parent].join(File.pathSeparator),
                     '-m', 'ps.ProcelioLauncher/procul.studios.ProcelioLauncher'
             ]
         }
