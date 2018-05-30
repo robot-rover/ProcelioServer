@@ -1,8 +1,6 @@
 package procul.studios.util;
 
 import java.io.File;
-import java.util.Arrays;
-import java.util.stream.Stream;
 
 public class Pack {
     public Tuple<Version, Version> bridge;

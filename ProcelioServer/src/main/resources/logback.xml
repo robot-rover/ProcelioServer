@@ -18,7 +18,6 @@
     <appender name="FileOut" class="ch.qos.logback.core.FileAppender">
         <file>debug.log</file>
         <append>false</append>
-        <immediateFlush>false</immediateFlush>
         <encoder>
             <charset>UTF-8</charset>
             <pattern>

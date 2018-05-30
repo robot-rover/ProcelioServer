@@ -2,16 +2,29 @@ package procul.studios;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runners.JUnit4;
 import procul.studios.util.Version;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class VersionTest extends DiffManager{
 
+    static TemporaryFolder tempFolder = new TemporaryFolder();
+    static {
+        try {
+            tempFolder.create();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public VersionTest() {
-        super(Configuration.loadConfiguration(ProcelioServer.configFile));
+        super(Configuration.loadConfiguration(ProcelioServer.configFile), tempFolder.getRoot());
     }
 
     @Test

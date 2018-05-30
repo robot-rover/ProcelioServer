@@ -1,6 +1,6 @@
 package procul.studios;
 
-import com.mashape.unirest.http.exceptions.UnirestException;
+import com.google.gson.Gson;
 import io.sigpipe.jbsdiff.InvalidHeaderException;
 import io.sigpipe.jbsdiff.Patch;
 import javafx.application.Application;
@@ -12,10 +12,7 @@ import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
 import javafx.scene.control.*;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.effect.BlendMode;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -37,21 +34,16 @@ import procul.studios.pojo.response.LauncherDownload;
 import procul.studios.util.*;
 
 import javax.xml.bind.DatatypeConverter;
-import java.awt.*;
 import java.io.*;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-
-import static procul.studios.EndpointWrapper.gson;
 
 /**
  * Main Class for the Procelio Game Launcher
@@ -59,20 +51,23 @@ import static procul.studios.EndpointWrapper.gson;
 public class ProcelioLauncher extends Application {
     private static final Logger LOG = LoggerFactory.getLogger(ProcelioLauncher.class);
 
+    public final Gson gson = null;
+
     /**
      * Constant determines the version of the launcher build
      */
-    private static final Version launcherVersion = new Version(0, 0, 1);
+    private static final Version launcherVersion = new Version(0, 0, 2);
     /**
      * Constant determines the endpoint for the Procelio Backend
      */
-    static final String backendEndpoint = "https://api.sovietbot.xyz";
+    static final String backendEndpoint = /*"https://api.sovietbot.xyz"*/ "http://127.0.0.1";
     // Used for callbacks updating progress of a download or patch
     private Tuple<Label, ProgressBar> download;
     // Used for callback to change visible tab
     private TabPane selectView;
     private Tab downloadsTab;
     private Tab updatesTab;
+
     /**
      * Directory to install the game
      */
@@ -91,13 +86,14 @@ public class ProcelioLauncher extends Application {
     }
 
     @Override
-    public void start(Stage primaryStage) throws UnirestException, NoSuchAlgorithmException, CloneNotSupportedException {
+    public void start(Stage primaryStage) throws IOException {
 
         this.primaryStage = primaryStage;
         primaryStage.setMinHeight(380);
         primaryStage.setMinWidth(550);
         wrapper = new EndpointWrapper();
         primaryStage.setTitle("Procelio Launcher v" + launcherVersion);
+
         primaryStage.getIcons().add(new Image(ClassLoader.getSystemResourceAsStream("icon.png")));
         BorderPane root = new BorderPane();
 
@@ -115,7 +111,7 @@ public class ProcelioLauncher extends Application {
                 openBrowser(wrapper.getConfig().websiteUrl);
             } catch (IOException e) {
                 LOG.warn("Unable to connect to server");
-                FX.dialog("Connection Error", "Unable to communitcate with Procelio Servers", Alert.AlertType.WARNING);
+                FX.dialog("Connection Error", "Unable to communicate with Procelio Servers", Alert.AlertType.WARNING);
             }
         });
         logoCollider.setOnMouseEntered(event -> logo.setBlendMode(BlendMode.DIFFERENCE));
@@ -256,15 +252,8 @@ public class ProcelioLauncher extends Application {
     public void openBrowser(String url) {
         try {
             LOG.info("Opening " + url);
-            if (System.getProperty("os.name", "generic").toLowerCase(Locale.ENGLISH).contains("nux")) { // Desktop class can be buggy for Linux, thus this workaround
-                Runtime.getRuntime().exec(new String[]{"xdg-open", url});
-            } else if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-                Desktop.getDesktop().browse(new URI(url));
-            } else {
-                //todo: allow copy paste if unsupported
-                LOG.warn("Unable to open hyperlink");
-            }
-        } catch (IOException | URISyntaxException e) {
+            Runtime.getRuntime().exec(url);
+        } catch (IOException e) {
             LOG.error("Error opening hyperlink " + url, e);
         }
     }

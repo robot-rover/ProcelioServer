@@ -1,9 +1,7 @@
 package procul.studios.util;
 
-import org.apache.commons.compress.archivers.zip.ZipMethod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import spark.utils.IOUtils;
 
 import java.io.*;
 import java.nio.file.Path;
@@ -11,7 +9,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 public class AppZip {
@@ -50,7 +47,7 @@ public class AppZip {
                 out.putNextEntry(entry);
 
                 try (FileInputStream in = new FileInputStream(source.toPath().resolve(manifest).toFile())) {
-                    IOUtils.copyLarge(in, out);
+                    copyLarge(in, out);
                 }
             }
             for(Path file : this.fileList){
@@ -60,7 +57,7 @@ public class AppZip {
 
                 try (FileInputStream in = new FileInputStream(source.toPath().resolve(file).toFile())) {
                     //todo: useCopyLarge for large streams
-                    IOUtils.copyLarge(in, out);
+                    copyLarge(in, out);
                 }
             }
 
@@ -95,5 +92,34 @@ public class AppZip {
      */
     private Path generateZipEntry(File file){
         return pathRelativeTo(file.toPath(), source.toPath());
+    }
+
+    private static final int DEFAULT_BUFFER_SIZE = 1024 * 4;
+
+    /**
+     * Copies bytes from a large (over 2GB) <code>InputStream</code> to an
+     * <code>OutputStream</code>.
+     * <p>
+     * This method uses the provided buffer, so there is no need to use a
+     * <code>BufferedInputStream</code>.
+     * <p>
+     *
+     * @param input the <code>InputStream</code> to read from
+     * @param output the <code>OutputStream</code> to write to
+     * @return the number of bytes copied
+     * @throws NullPointerException if the input or output is null
+     * @throws IOException if an I/O error occurs
+     * @since Commons IO 2.2
+     */
+    public static long copyLarge(final InputStream input, final OutputStream output)
+            throws IOException {
+        byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
+        long count = 0;
+        int n = 0;
+        while (-1 != (n = input.read(buffer))) {
+            output.write(buffer, 0, n);
+            count += n;
+        }
+        return count;
     }
 }

@@ -5,17 +5,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.pojo.Server;
 import procul.studios.pojo.response.LauncherConfiguration;
-import procul.studios.pojo.response.LauncherDownload;
+import spark.utils.IOUtils;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.Timer;
 
 /**
  *

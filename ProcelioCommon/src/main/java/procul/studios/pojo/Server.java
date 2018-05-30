@@ -1,6 +1,6 @@
 package procul.studios.pojo;
 
-import static procul.studios.ProcelioServer.gson;
+import com.google.gson.Gson;
 
 public class Server {
     public String name;
@@ -19,8 +19,9 @@ public class Server {
         isOnline = false;
     }
 
-    @Override
+    /*@Override
     public String toString(){
-        return gson.toJson(this);
-    }
+        //todo: unify gson usages
+        return new Gson().toJson(this);
+    }*/
 }

@@ -1,4 +1,5 @@
 rootProject.name = 'Procelio'
 include 'ProcelioServer'
 include 'ProcelioLauncher'
-include ':ProcelioLauncher', ':ProcelioServer'
+include 'ProcelioCommon'
+

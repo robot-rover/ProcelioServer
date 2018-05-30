@@ -15,7 +15,7 @@ ProcelioGame
 # Created by .ignore support plugin (hsz.mobi)
 ### Gradle template
 .gradle
-/build/
+build/
 gradlew*
 
 # Ignore Gradle GUI config

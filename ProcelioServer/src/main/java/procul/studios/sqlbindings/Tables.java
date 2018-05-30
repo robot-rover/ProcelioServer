@@ -3,7 +3,6 @@
 */
 package procul.studios.sqlbindings;
 
-
 import javax.annotation.Generated;
 
 import procul.studios.sqlbindings.tables.Authtable;

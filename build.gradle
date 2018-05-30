@@ -3,10 +3,24 @@ version 'main'
 
 apply plugin: 'java'
 
-sourceCompatibility = 1.8
-
 repositories {
     mavenCentral()
+}
+
+subprojects {
+    afterEvaluate {
+        compileJava {
+            if (sourceCompatibility == '1.9') {
+                inputs.property("moduleName", moduleName)
+                doFirst {
+                    options.compilerArgs = [
+                            '--module-path', classpath.asPath,
+                    ]
+                    classpath = files()
+                }
+            }
+        }
+    }
 }
 
 dependencies {
