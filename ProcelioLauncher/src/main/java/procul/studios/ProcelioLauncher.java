@@ -13,6 +13,9 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.effect.BlendMode;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -34,7 +37,9 @@ import procul.studios.pojo.response.LauncherDownload;
 import procul.studios.util.*;
 
 import javax.xml.bind.DatatypeConverter;
+import java.awt.*;
 import java.io.*;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.security.DigestInputStream;
@@ -86,7 +91,7 @@ public class ProcelioLauncher extends Application {
     }
 
     @Override
-    public void start(Stage primaryStage) throws IOException {
+    public void start(Stage primaryStage) {
 
         this.primaryStage = primaryStage;
         primaryStage.setMinHeight(380);
@@ -252,8 +257,13 @@ public class ProcelioLauncher extends Application {
     public void openBrowser(String url) {
         try {
             LOG.info("Opening " + url);
-            Runtime.getRuntime().exec(url);
-        } catch (IOException e) {
+            Desktop desktop = Desktop.getDesktop();
+            if(desktop == null) {
+                throw new Exception("Java Desktop class is not supported");
+            }
+            URI oURL = new URI(url);
+            desktop.browse(oURL);
+        } catch (Exception e) {
             LOG.error("Error opening hyperlink " + url, e);
         }
     }

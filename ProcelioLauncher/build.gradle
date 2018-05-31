@@ -136,6 +136,7 @@ task packageLauncher(dependsOn: transformJar) {
             args = ['-deploy',
                     '-native', (Os.isFamily(Os.FAMILY_WINDOWS) ? "exe" : "deb"),
                     '-outdir', outputDir,
+                    '-outfile', 'dumb',
                     '-name', project.name,
                     '-title', project.ext.description,
                     '-vendor', project.ext.vendor,
