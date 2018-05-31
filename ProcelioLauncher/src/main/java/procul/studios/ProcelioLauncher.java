@@ -101,7 +101,7 @@ public class ProcelioLauncher extends Application {
         titleBox.setPadding(new Insets(10));
         titleBox.setSpacing(100);
         StackPane logoCollider = new StackPane();
-        ImageView logo = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("logo.png")));
+        ImageView logo = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("banner.png")));
         logo.setSmooth(true);
         logo.preserveRatioProperty().setValue(true);
         logo.setFitHeight(100);

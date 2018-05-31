@@ -1,0 +1,28 @@
+language: java
+jdk:
+- oraclejdk10
+before_install:
+- sudo apt install fakeroot
+before_cache:
+- rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
+- rm -fr $HOME/.gradle/caches/*/plugin-resolution/
+cache:
+  directories:
+  - "$HOME/.gradle/caches/"
+  - "$HOME/.gradle/wrapper/"
+script:
+- ./gradlew --info :ProcelioLauncher:packageLauncher
+before_deploy:
+  - echo "deploying ProcelioLauncher/build/packages/procelioLauncher-${TRAVIS_TAG}.deb"
+  - ls ProcelioLauncher/build/packages
+deploy:
+  provider: releases
+  api_key:
+    secure: cHOvn9oLiWp50/wXNfe671qmyB+tvwl3g6XOJmo/UTH5acIWdWY3jVoYrTDMb9BmfBiLuPwSda5fVmVBd/AgzXV+ZjjB8UtM/GwB+R8Fqld28bP4uTanQtA6Jq71Jd4qNKeigMa4DwNqz1ZwZdAh2YJHOCAI4sUF7rYy6QGMjuwQvMot422BFFXTnfOq6MPf/6jm373aLEi3WvX5Oth/Vji2iHtQSlUBEVt7NtSSQLOavofadrzZIzrDfs6JSo6TnzlFdv1XrW86MV3SHDhoi3KUOsT6HSB2m2kIjUUsXd1L5h15K6180V/j9qrrPru/WQxxe8Q9I6UW2svOKCW7xHetRKKH1D5IW09FKXpgEMJFkQWshqiUaG8F4kmRXZMhgP93KFtxMn3m0M3Rw0pRDEvzl+f7B5ThQuqdSOOWN7y6TUCix6DrRVxrOevjgBOoip2P5MyTpCFFmB73ZFKtLOz23ukkmZlInwGPuiH53xy6ioZVxzd+ldH9AXfkihNv1x5RYbkB2eNJIPYD/aq+448YSNNvqeRA6/lMlIihhSc24cXHCF0VMk9Ar+Ow5DhR8sBSgXEINbi+M3ijhAVicX7QPfa6HbCLcQ7g1XTyIqPfI9bF0oP7yZO514geQpXiGUi5H5lg1fv6qihkZ7l8yF9uzzJVhHcJohRXNXotCwQ=
+  file_glob: true
+  file: ProcelioLauncher/build/packages/proceliolauncher-*.deb
+  skip_cleanup: true
+  on:
+    repo: robot-rover/ProcelioServer
+    branch: master
+    tags: true

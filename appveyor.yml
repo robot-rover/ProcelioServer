@@ -1,0 +1,22 @@
+version: 1.0.{build}
+build_script:
+- cmd: >-
+    pwd
+
+    dir
+
+    gradlew.bat -Dorg.gradle.java.home="C:\Program Files\Java\jdk10" --no-daemon --info :ProcelioLauncher:packageLauncher
+artifacts:
+- path: ProcelioLauncher\build\packages\*.exe
+  name: ProcelioLauncher
+deploy:
+  description: 'Automated Release'
+  provider: GitHub
+  auth_token:
+    secure: qNUyTaZTVVQpVn7TH+ceyO2X2XJQgY2hp/FnozgyqpRzUv19M3KrQKAVXMi0MMqg
+  artifact: ProcelioLauncher
+  draft: false
+  prerelease: false
+  on:
+    branch: master                 # release from master branch only
+    appveyor_repo_tag: true        # deploy on tag push only
