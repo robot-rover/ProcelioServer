@@ -1,14 +1,19 @@
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import org.apache.tools.ant.taskdefs.condition.Os
 
 group 'procul.studios'
-version 'main'
+version '0.0.2'
 
 apply plugin: 'java'
 
 apply plugin: 'com.github.johnrengelman.shadow'
 
 ext {
+    description = "Play and Update Procelio"
+    icon = "resources/main/icon" + (Os.isFamily(Os.FAMILY_WINDOWS) ? ".ico" : ".png")
+    vendor = "Procul Studios"
+    category = 'Game'
     moduleName = 'ps.ProcelioLauncher'
     mainClassName = 'procul.studios.ProcelioLauncher'
     newModuleInfo = 'module-info.java'
@@ -129,9 +134,15 @@ task packageLauncher(dependsOn: transformJar) {
         exec {
             executable 'javapackager'
             args = ['-deploy',
-                    '-native', 'installer',
+                    '-native', (Os.isFamily(Os.FAMILY_WINDOWS) ? "exe" : "deb"),
                     '-outdir', outputDir,
                     '-name', project.name,
+                    '-title', project.ext.description,
+                    '-vendor', project.ext.vendor,
+                    '-Bcategory=' + project.ext.category,
+                    '-Bicon=' + project.buildDir.path + File.separator + project.ext.icon,
+                    '-BjlinkOptions=strip-debug',
+                    '-BappVersion=' + project.version,
                     '--module-path', [project.jdkHome + "/jmods", transformJar.archivePath.parent].join(File.pathSeparator),
                     '-m', 'ps.ProcelioLauncher/procul.studios.ProcelioLauncher'
             ]
