@@ -2,7 +2,6 @@ module ps.ProcelioLauncher {
     requires javafx.graphics;
     requires javafx.controls;
     requires java.datatransfer;
-    requires java.xml.bind;
     requires java.sql;
     requires java.naming;
     exports procul.studios;

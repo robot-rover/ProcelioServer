@@ -21,6 +21,7 @@ public class LauncherConfiguration {
     public String quoteAuthor;
 
     public static class Update {
+        public String title;
         public Integer[] version;
         public String description;
         public String hyperlink;

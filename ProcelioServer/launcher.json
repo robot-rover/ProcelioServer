@@ -7,18 +7,80 @@
       "version": [0,0,0],
       "description": "testing the launcher thank you very much",
       "hyperlink": "https://www.google.com",
-      "image": "https://i.stack.imgur.com/MyJ4E.png"
+      "image": "https://www.aacrao.org/images/default-source/default-album/200x250.png?sfvrsn=9021b251_0",
+      "title": "now everyone gets a title"
     },
     {
-      "version": [0,0,1],
+      "title": "This title is longer than is reasonable for a title :-P",
       "description": "testing the launcher thank you very much, this is really really really really really really really really really really really really really really really really really really long!",
       "hyperlink": "https://www.sovietbot.xyz",
-      "image": "https://www.sovietbot.xyz/avatar.png"
+      "image": "http://images.tmz.com/2014/10/26/liam-hemsworth-200x250.jpg"
     },
     {
       "version": [0,0,2],
       "description": "No image because SCREW YOU",
-      "hyperlink": "https://www.sovietbot.xyz"
+      "hyperlink": "https://www.sovietbot.xyz",
+      "title": "This has a Title!!!"
+    },
+    {
+      "version": [0,0,2],
+      "description": "No image because SCREW YOU",
+      "hyperlink": "https://www.sovietbot.xyz",
+      "title": "This has a Title!!!"
+    },
+    {
+      "version": [0,0,2],
+      "description": "No image because SCREW YOU",
+      "hyperlink": "https://www.sovietbot.xyz",
+      "title": "This has a Title!!!"
+    },
+    {
+      "version": [0,0,2],
+      "description": "No image because SCREW YOU",
+      "hyperlink": "https://www.sovietbot.xyz",
+      "title": "This has a Title!!!"
+    },
+    {
+      "version": [0,0,2],
+      "description": "No image because SCREW YOU",
+      "hyperlink": "https://www.sovietbot.xyz",
+      "title": "This has a Title!!!"
+    },
+    {
+      "version": [0,0,2],
+      "description": "No image because SCREW YOU",
+      "hyperlink": "https://www.sovietbot.xyz",
+      "title": "This has a Title!!!"
+    },
+    {
+      "version": [0,0,2],
+      "description": "No image because SCREW YOU",
+      "hyperlink": "https://www.sovietbot.xyz",
+      "title": "This has a Title!!!"
+    },
+    {
+      "version": [0,0,2],
+      "description": "No image because SCREW YOU",
+      "hyperlink": "https://www.sovietbot.xyz",
+      "title": "This has a Title!!!"
+    },
+    {
+      "version": [0,0,2],
+      "description": "No image because SCREW YOU",
+      "hyperlink": "https://www.sovietbot.xyz",
+      "title": "This has a Title!!!"
+    },
+    {
+      "version": [0,0,2],
+      "description": "No image because SCREW YOU",
+      "hyperlink": "https://www.sovietbot.xyz",
+      "title": "This has a Title!!!"
+    },
+    {
+      "version": [0,0,2],
+      "description": "No image because SCREW YOU",
+      "hyperlink": "https://www.sovietbot.xyz",
+      "title": "This has a Title!!!"
     }
   ],
   "launcherVersion": [0,0,1]

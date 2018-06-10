@@ -1,18 +1,13 @@
 package procul.studios;
 
-import io.sigpipe.jbsdiff.Diff;
 import procul.studios.pojo.response.LauncherDownload;
-import procul.studios.pojo.response.Message;
 import procul.studios.util.*;
 import spark.Request;
-
 import spark.Response;
 import spark.utils.IOUtils;
 
-import javax.xml.bind.DatatypeConverter;
 import java.io.*;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -101,7 +96,7 @@ public class LauncherEndpoints {
 
     public Object fullBuild(Request req, Response res){
         res.header("Content-Type", "application/zip");
-        res.header("Content-MD5", DatatypeConverter.printHexBinary(getDiffer(req).getNewestBuild().hash));
+        res.header("Content-MD5", Hashing.printHexBinary(getDiffer(req).getNewestBuild().hash));
         res.header("Content-Length", String.valueOf(getDiffer(req).getNewestBuild().length));
         try (OutputStream out = res.raw().getOutputStream();
              InputStream in = new FileInputStream(getDiffer(req).getNewestBuild().zip)){
@@ -119,7 +114,7 @@ public class LauncherEndpoints {
         if(pack == null)
             return ex("Patch could not be found", 404);
         res.header("Content-Type", "application/zip");
-        res.header("Content-MD5", DatatypeConverter.printHexBinary(pack.hash));
+        res.header("Content-MD5", Hashing.printHexBinary(pack.hash));
         res.header("Content-Length", String.valueOf(pack.length));
         try (OutputStream out = res.raw().getOutputStream();
              InputStream in = new FileInputStream(pack.zip)){
@@ -143,7 +138,7 @@ public class LauncherEndpoints {
         LauncherDownload result = new LauncherDownload("/launcher/build", upToDate, config.launcherConfig.launcherVersion);
         if(upToDate)
             return gson.toJson(result);
-        while(currentVersion != goal){
+        while(!currentVersion.equals(goal)){
             boolean found = false;
             for(Pack pack : packages){
                 if(pack.bridge.getFirst().equals(currentVersion)) {

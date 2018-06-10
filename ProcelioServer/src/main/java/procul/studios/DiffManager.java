@@ -2,7 +2,6 @@ package procul.studios;
 
 import io.sigpipe.jbsdiff.Diff;
 import io.sigpipe.jbsdiff.InvalidHeaderException;
-import io.sigpipe.jbsdiff.ui.FileUI;
 import net.lingala.zip4j.model.ZipParameters;
 import net.lingala.zip4j.util.Zip4jConstants;
 import org.apache.commons.compress.compressors.CompressorException;
@@ -10,17 +9,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.pojo.BuildManifest;
 import procul.studios.pojo.PackageManifest;
-import procul.studios.pojo.response.Message;
 import procul.studios.util.*;
 import spark.utils.IOUtils;
 
-import javax.xml.bind.DatatypeConverter;
 import java.io.*;
 import java.nio.file.*;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.Security;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -90,7 +86,7 @@ public class DiffManager {
     }
 
     public Version getNewestVersion(){
-        return versions.get(versions.size()-1).getFirst();
+        return versions.stream().map(Tuple::getFirst).max(Version::compareTo).get();
     }
 
     public Pack getNewestBuild(){
@@ -151,7 +147,7 @@ public class DiffManager {
             throw new RuntimeException("Error calculating pack hash for " + toHash.getAbsolutePath(), e);
         }
         byte[] hashBytes = hash.digest();
-        LOG.info("Calculated hash: {}", DatatypeConverter.printHexBinary(hashBytes));
+        LOG.info("Calculated hash: {}", Hashing.printHexBinary(hashBytes));
         return new Tuple<>(hashBytes, fileLength);
     }
 
@@ -179,7 +175,7 @@ public class DiffManager {
                 currentPack.hash = packData.getFirst();
                 currentPack.length = packData.getSecond();
             }
-            File newestBuild = new File(buildDir, "build-" + versions.get(versions.size()-1).getFirst());
+            File newestBuild = new File(buildDir, "build-" + versions.stream().map(Tuple::getFirst).max(Version::compareTo).get());
             if(!newestBuild.exists())
                 throw new RuntimeException("Newest build " + newestBuild.getAbsolutePath() + " doesn't exist to be zipped");
             File zipArc = new File(zipDir, newestBuild.getName() + ".zip");
@@ -202,12 +198,13 @@ public class DiffManager {
                 currentPack.length = packData.getSecond();
                 packages.add(currentPack);
             }
-
-            File zipArc = new File(zipDir, "build-" + versions.get(versions.size()-1).getFirst() + ".zip");
-            LOG.info("Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
-            Tuple<byte[], Long> packInfo = hashFile(zipArc);
-            currentBuild = new Pack(null, packInfo.getFirst(), zipArc);
-            currentBuild.length = packInfo.getSecond();
+            if(versions.size() > 0) {
+                File zipArc = new File(zipDir, "build-" + versions.stream().map(Tuple::getFirst).max(Version::compareTo).get() + ".zip");
+                LOG.info("Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
+                Tuple<byte[], Long> packInfo = hashFile(zipArc);
+                currentBuild = new Pack(null, packInfo.getFirst(), zipArc);
+                currentBuild.length = packInfo.getSecond();
+            }
         }
 
 
@@ -305,7 +302,7 @@ public class DiffManager {
                 IOUtils.copyLarge(new DigestInputStream(currentFileIn, hasher), currentFileBytes);
                 Path subPath = diffDir.toPath().relativize(diff.toPath().resolve(newFile.getName()));
                 manifest.filesAndHashes.add(
-                        DatatypeConverter.printHexBinary(hasher.digest()) + subPath.subpath(1, subPath.getNameCount())
+                        Hashing.printHexBinary(hasher.digest()) + subPath.subpath(1, subPath.getNameCount())
 
                 );
                 if (oldFile == null) {

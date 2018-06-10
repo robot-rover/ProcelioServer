@@ -3,7 +3,7 @@ import java.nio.file.StandardCopyOption
 import org.apache.tools.ant.taskdefs.condition.Os
 
 group 'procul.studios'
-version '0.0.3'
+version '0.0.0'
 
 apply plugin: 'java'
 
@@ -140,10 +140,12 @@ task packageLauncher(dependsOn: transformJar) {
                     '-name', project.name,
                     '-title', project.ext.description,
                     '-vendor', project.ext.vendor,
+                    '-BlicenseFile=LICENSE',
                     '-Bcategory=' + project.ext.category,
                     '-Bicon=' + project.buildDir.path + File.separator + project.ext.icon,
-                    '-BjlinkOptions=strip-debug',
+                    '-BjlinkOptions= strip-debug=1 compress=2',
                     '-BappVersion=' + project.version,
+                    '-Bverbose=true',
                     '--module-path', [project.jdkHome + "/jmods", transformJar.archivePath.parent].join(File.pathSeparator),
                     '-m', 'ps.ProcelioLauncher/procul.studios.ProcelioLauncher'
             ]

@@ -12,10 +12,10 @@ import procul.studios.pojo.Server;
 import procul.studios.pojo.response.LauncherConfiguration;
 import procul.studios.pojo.response.LauncherDownload;
 import procul.studios.util.HashMismatchException;
+import procul.studios.util.Hashing;
 import procul.studios.util.OperatingSystem;
 import procul.studios.util.Version;
 
-import javax.xml.bind.DatatypeConverter;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -119,7 +119,7 @@ public class EndpointWrapper {
                     buff.write(data, 0, x);
                 }
                 serverHash = httpConnection.getHeaderField("Content-MD5");
-                clientHash = DatatypeConverter.printHexBinary(md5.digest());
+                clientHash = Hashing.printHexBinary(md5.digest());
                 buff.flush();
             }
             LOG.info("Server: {} -> Client: {}", serverHash, clientHash);

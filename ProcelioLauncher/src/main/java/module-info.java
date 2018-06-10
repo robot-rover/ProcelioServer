@@ -4,9 +4,7 @@ module ps.ProcelioLauncher {
     requires jbsdiff;
     requires unirest.java;
     requires javafx.controls;
-    requires java.datatransfer;
     requires java.naming;
-    requires java.xml.bind;
     requires ps.ProcelioCommon;
     requires gson;
     requires org.slf4j;

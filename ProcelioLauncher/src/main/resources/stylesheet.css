@@ -1,0 +1,67 @@
+.root {
+    -fx-font-family: 'Share Tech';
+}
+
+#social {
+    -fx-opacity: 0.5;
+}
+
+#social:hover {
+    -fx-opacity: 1;
+}
+
+.scroll-pane {
+    -fx-background-color: rgba(0, 0, 0, 0);
+    -fx-background: rgba(0, 0, 0, 0);
+}
+
+.progress-bar {
+    -fx-accent: #FF7500;
+}
+
+.progress-bar > .bar {
+    -fx-background-color: -fx-accent;
+    -fx-background-radius: 0;
+    -fx-background-insets: 0;
+}
+
+.progress-bar > .track {
+    -fx-background-radius: 0;
+    -fx-background-color: white;
+}
+
+.button {
+    -fx-background-color: #FF7500;
+    -fx-background-radius: 0;
+}
+
+.button:pressed {
+    -fx-background-color: derive(#FF7500, -20%);
+}
+
+#motd.label {
+    -fx-text-fill: white;
+    -fx-font-size: 25;
+}
+
+#launch {
+    -fx-font-size: 30;
+}
+
+#launchBar {
+    -fx-background-color: rgba(1, 1, 1, 0.5);
+}
+
+#download {
+    -fx-font-size: 20;
+}
+
+#updateTitle.label {
+    -fx-font-size: 25;
+    -fx-text-alignment: center;
+}
+
+#updateVersion.label {
+    /*-fx-background-color: rgba(1, 1, 1, 0.5);*/
+    -fx-font-size: 25;
+}
