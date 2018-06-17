@@ -3,7 +3,7 @@ import java.nio.file.StandardCopyOption
 import org.apache.tools.ant.taskdefs.condition.Os
 
 group 'procul.studios'
-version '0.0.0'
+version '0.0.1'
 
 apply plugin: 'java'
 
@@ -97,7 +97,7 @@ task imageJre(dependsOn: tasks.transformJar) {
     project.ext.osMap.each {
         k, v -> outputs.dir "${buildDir}/jre-image-${k}"
     }
-    inputs.dir project.libsDir
+    inputs.dir transformJar.outputs
 
     doLast {
         project.ext.osMap.each {
@@ -140,10 +140,9 @@ task packageLauncher(dependsOn: transformJar) {
                     '-name', project.name,
                     '-title', project.ext.description,
                     '-vendor', project.ext.vendor,
-                    '-BlicenseFile=LICENSE',
                     '-Bcategory=' + project.ext.category,
                     '-Bicon=' + project.buildDir.path + File.separator + project.ext.icon,
-                    '-BjlinkOptions= strip-debug=1 compress=2',
+                    '-BjlinkOptions=compress=2',
                     '-BappVersion=' + project.version,
                     '-Bverbose=true',
                     '--module-path', [project.jdkHome + "/jmods", transformJar.archivePath.parent].join(File.pathSeparator),

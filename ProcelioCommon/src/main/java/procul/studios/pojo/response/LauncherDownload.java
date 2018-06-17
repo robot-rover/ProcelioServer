@@ -7,6 +7,9 @@ public class LauncherDownload {
     public List<String> patches;
     public boolean upToDate;
     public Integer[] launcherVersion;
+    public LauncherDownload() {
+
+    }
 
     public LauncherDownload(String build, boolean upToDate, Integer[] launcherVersion){
         this.build = build;

@@ -1,7 +1,5 @@
 package procul.studios.pojo;
 
-import com.google.gson.Gson;
-
 public class Server {
     public String name;
     public String hostname;
@@ -10,6 +8,9 @@ public class Server {
     public int usersOnline;
     public int capacity;
     public boolean isOnline;
+    public Server() {
+
+    }
     public Server(String hostname){
         name = "";
         this.hostname = hostname;

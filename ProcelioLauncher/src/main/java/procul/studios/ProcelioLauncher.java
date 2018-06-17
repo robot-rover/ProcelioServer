@@ -29,15 +29,14 @@ import org.slf4j.LoggerFactory;
 import procul.studios.pojo.BuildManifest;
 import procul.studios.pojo.Server;
 import procul.studios.pojo.response.LauncherConfiguration;
-import procul.studios.util.FX;
-import procul.studios.util.HashMismatchException;
-import procul.studios.util.Tuple;
-import procul.studios.util.Version;
+import procul.studios.util.*;
 
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -53,12 +52,12 @@ public class ProcelioLauncher extends Application {
     /**
      * Constant determines the version of the launcher build
      */
-    private static final Version launcherVersion = new Version(0, 0, 0);
+    private static final Version launcherVersion = new Version(0, 0, 1);
 
     /**
      * Constant determines the endpoint for the Procelio Backend
      */
-    static final String backendEndpoint = /*"https://api.sovietbot.xyz"*/ "http://127.0.0.1";
+    static final String backendEndpoint = "https://www.sovietbot.xyz:8443" /*"http://127.0.0.1"*/;
 
     // Used for callbacks updating progress of a download or patch
     private Tuple<Label, ProgressBar> downloadCallbackTuple;
@@ -66,7 +65,17 @@ public class ProcelioLauncher extends Application {
     /**
      * Directory to install the game
      */
-    static final File gameDir = new File("ProcelioGame");
+    static final File gameDir = new File(System.getProperty("user.home"), ".ProcelioGame");
+    static {
+        gameDir.mkdirs();
+        if(OperatingSystem.get().equals(OperatingSystem.WINDOWS)) {
+            try {
+                Files.setAttribute(gameDir.toPath(), "dos:hidden", Boolean.TRUE, LinkOption.NOFOLLOW_LINKS);
+            } catch (IOException e) {
+                LOG.error("Cannot hide game folder");
+            }
+        }
+    }
 
     // Set by the launcher version check
     private boolean launcherOutOfDate = false;
@@ -87,8 +96,11 @@ public class ProcelioLauncher extends Application {
 
     @Override
     public void init() {
+        LOG.info("Game Directory: {}", gameDir.getAbsolutePath());
+
         Font.loadFont(ClassLoader.getSystemResource("ShareTech-Regular.ttf").toExternalForm(), -1);
-        System.out.println(this.getClass().getModule());
+        LOG.info("Current Module: {}", this.getClass().getModule());
+
     }
 
     @Override
@@ -164,7 +176,7 @@ public class ProcelioLauncher extends Application {
         double logoWidth = 30;
         double logoHeight = 30;
 
-        ImageView youtube = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("social/youtube_logo_small.png")));
+        ImageView youtube = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("youtube_logo_small.png")));
         youtube.setPreserveRatio(true);
         youtube.setId("social");
         youtube.setOnMouseClicked(v -> openBrowser("https://www.youtube.com/channel/UCb9SlKVDpFMb3_BkcTNv8SQ"));
@@ -172,7 +184,7 @@ public class ProcelioLauncher extends Application {
         youtube.setFitHeight(logoHeight);
         socialBar.getChildren().add(youtube);
 
-        ImageView twitter = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("social/twitter_logo_small.png")));
+        ImageView twitter = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("twitter_logo_small.png")));
         twitter.setPreserveRatio(true);
         twitter.setId("social");
         twitter.setOnMouseClicked(v -> openBrowser("https://twitter.com/proceliogame?lang=en"));
@@ -180,7 +192,7 @@ public class ProcelioLauncher extends Application {
         twitter.setFitHeight(logoHeight);
         socialBar.getChildren().add(twitter);
 
-        ImageView discord = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("social/discord_logo_small.png")));
+        ImageView discord = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("discord_logo_small.png")));
         discord.setPreserveRatio(true);
         discord.setId("social");
         discord.setOnMouseClicked(v -> openBrowser("https://discord.gg/sKmA3QV"));
@@ -195,6 +207,7 @@ public class ProcelioLauncher extends Application {
         HBox.setHgrow(motd, Priority.ALWAYS);
 
         Label motdText;
+
         try {
             motdText = new Label(wrapper.getConfig().quoteOfTheDay);
         } catch (IOException e) {
@@ -435,7 +448,11 @@ public class ProcelioLauncher extends Application {
             return new Task<>() {
                 @Override
                 protected Void call() {
-                    launchGame();
+                    try {
+                        launchGame();
+                    } catch (Exception e) {
+                        LOG.error("Error in UpdaterService", e);
+                    }
                     return null;
                 }
             };

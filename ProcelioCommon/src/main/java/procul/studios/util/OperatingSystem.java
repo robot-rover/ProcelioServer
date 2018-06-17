@@ -10,6 +10,8 @@ public enum OperatingSystem {
 
     public String[] terms;
 
+    private static OperatingSystem currentOS;
+
     OperatingSystem(String... indicies){
         this.terms = indicies;
     }
@@ -27,7 +29,7 @@ public enum OperatingSystem {
     }
 
     public static OperatingSystem get(){
-        return parse(System.getProperty("os.name").toLowerCase(Locale.ENGLISH));
+        return currentOS == null ? (currentOS = parse(System.getProperty("os.name").toLowerCase(Locale.ENGLISH))) : currentOS;
     }
     
     public String getIndex(){

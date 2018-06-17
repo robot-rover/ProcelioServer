@@ -9,5 +9,6 @@ module ps.ProcelioLauncher {
     requires gson;
     requires org.slf4j;
     requires java.desktop;
+    uses org.slf4j.spi.SLF4JServiceProvider;
     exports procul.studios;
 }
