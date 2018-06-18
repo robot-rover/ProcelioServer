@@ -158,8 +158,10 @@ public class DiffManager {
         versions = new ArrayList<>();
         for(File build : (buildsExist ? buildDir : zipDir).listFiles()){
             Matcher m = buildPattern.matcher(build.getName());
-            if(!m.find())
-                throw new RuntimeException("Unable to parse version from folder " + build.getAbsolutePath());
+            if(!m.find()) {
+                LOG.warn("Unable to parse version from folder " + build.getAbsolutePath());
+                continue;
+            }
             Tuple<Version, File> versionTuple = new Tuple<>(new Version(m.group(1), m.group(2), m.group(3)), build);
             versions.add(versionTuple);
         }
@@ -189,8 +191,12 @@ public class DiffManager {
             currentBuild = new Pack(null, packInfo.getFirst(), zipArc);
             currentBuild.length = packInfo.getSecond();
         } else {
-            for (File zipArc : zipDir.listFiles(File::isDirectory)) {
+            for (File zipArc : zipDir.listFiles()) {
                 Matcher m = packagePattern.matcher(zipArc.getName());
+                if(!m.find()) {
+                    LOG.warn("Skipping package, can't parse version: {}", zipArc.getAbsolutePath());
+                    continue;
+                }
                 LOG.info("Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
                 Tuple<byte[], Long> packData = hashFile(zipArc);
                 Pack currentPack = new Pack(new Tuple<>(new Version(m.group(1), m.group(2), m.group(3)), new Version(m.group(4), m.group(5), m.group(6))),
