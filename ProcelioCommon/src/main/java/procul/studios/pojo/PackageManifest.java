@@ -1,6 +1,5 @@
 package procul.studios.pojo;
 
-import com.google.gson.annotations.Expose;
 import procul.studios.util.Tuple;
 import procul.studios.util.Version;
 
@@ -17,6 +16,10 @@ public class PackageManifest {
     public String newExec;
 
     private transient File baseDir;
+
+    public PackageManifest() {
+    }
+
     public PackageManifest(File baseDir, Tuple<Version, Version> bridge){
         delete = new ArrayList<>();
         this.baseDir = baseDir;

@@ -5,6 +5,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BuildManifest {
+    public BuildManifest() {
+    }
+
     public Integer[] version;
     public List<String> ignore;
     public String exec;

@@ -113,9 +113,9 @@ public class Patcher {
                         continue;
                     }
                     byte[] oldBytes = Files.readAllBytes(gameDir.toPath().resolve(gameDirFile));
-                    try (ByteArrayOutputStream patchStream = new ByteArrayOutputStream()) {
+                    try (ByteArrayOutputStream patchStream = new ByteArrayOutputStream();
+                         OutputStream patchedOut = new FileOutputStream(toPatch, false)) {
                         readEntry(zipStream, buffer, patchStream);
-                        OutputStream patchedOut = new FileOutputStream(toPatch, false);
                         Patch.patch(oldBytes, patchStream.toByteArray(), patchedOut);
                         if (toPatch.length() == 0) {
                             LOG.warn("File {} is now 0 bytes long: {}", toPatch.getAbsolutePath(), fileName);
@@ -153,8 +153,8 @@ public class Patcher {
                 String file = hashAndFile.substring(32, hashAndFile.length());
                 MessageDigest hasher = Hashing.getMessageDigest();
                 if (hasher == null) return;
-                DigestInputStream digest = new DigestInputStream(new FileInputStream(new File(gameDir, file)), hasher);
-                while (digest.read(buffer) != -1) {
+                try (DigestInputStream digest = new DigestInputStream(new FileInputStream(new File(gameDir, file)), hasher)) {
+                    while (digest.read(buffer) != -1) {}
                 }
                 String fileHash = Hashing.printHexBinary(hasher.digest());
                 if (!hash.equals(fileHash)) {
@@ -168,8 +168,12 @@ public class Patcher {
         updateVisibleCallback.accept(false);
     }
 
-    public BuildManifest loadManifest() throws FileNotFoundException {
-        return EndpointWrapper.gson.fromJson(new InputStreamReader(new FileInputStream(new File(gameDir, "manifest.json"))), BuildManifest.class);
+    public BuildManifest loadManifest() throws FileNotFoundException, IOException {
+        BuildManifest manifest = null;
+        try (InputStreamReader isr = new InputStreamReader(new FileInputStream(new File(gameDir, "manifest.json")))) {
+            manifest = EndpointWrapper.gson.fromJson(isr, BuildManifest.class);
+        }
+        return manifest;
     }
 
     private void readEntry(ZipInputStream zip, byte[] buffer, OutputStream out) throws IOException {
@@ -198,7 +202,11 @@ public class Patcher {
         }
 
         updateVisibleCallback.accept(false);
-        return EndpointWrapper.gson.fromJson(new InputStreamReader(new FileInputStream(new File(gameDir, "manifest.json"))), BuildManifest.class);
+        BuildManifest manifest = null;
+        try (InputStreamReader isr = new InputStreamReader(new FileInputStream(new File(gameDir, "manifest.json")))) {
+            manifest = EndpointWrapper.gson.fromJson(isr, BuildManifest.class);
+        }
+        return manifest;
     }
 
     private static DecimalFormat df = new DecimalFormat("#.##");
