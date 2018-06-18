@@ -16,7 +16,7 @@
     </appender>
 
     <appender name="FileOut" class="ch.qos.logback.core.FileAppender">
-        <file>debug.log</file>
+        <file>${user.home}/.ProcelioGame/launcher.log</file>
         <append>false</append>
         <encoder>
             <charset>UTF-8</charset>

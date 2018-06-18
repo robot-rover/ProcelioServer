@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.pojo.Server;
 import procul.studios.pojo.response.LauncherConfiguration;
-import spark.utils.IOUtils;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -13,6 +12,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 /**
  *
@@ -65,7 +65,15 @@ public class ProcelioServer {
         for(File osDir : buildFolder.listFiles()){
             differs.add(new DiffManager(config, osDir));
         }
-        differs.forEach(DiffManager::generatePackages);
+        List<Thread> tList = differs.stream().map(v ->  new Thread(v::generatePackages)).collect(Collectors.toList());
+        tList.forEach(Thread::start);
+        tList.forEach(t -> {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                LOG.warn("Interrupted", e);
+            }
+        });
         Database database = new Database(config);
         AtomicDatabase atomicDatabase = new AtomicDatabase(database.getContext());
         ClientEndpoints clientWrapper = new ClientEndpoints(database.getContext(), config, atomicDatabase);
