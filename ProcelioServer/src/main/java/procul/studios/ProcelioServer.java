@@ -62,7 +62,7 @@ public class ProcelioServer {
         File buildFolder = new File(config.buildFolderPath);
         if(!buildFolder.exists())
             buildFolder.mkdir();
-        for(File osDir : buildFolder.listFiles()){
+        for(File osDir : buildFolder.listFiles(File::isDirectory)){
             differs.add(new DiffManager(config, osDir));
         }
         List<Thread> tList = differs.stream().map(v ->  new Thread(v::generatePackages)).collect(Collectors.toList());

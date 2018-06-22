@@ -1,5 +1,6 @@
 package procul.studios;
 
+import com.google.gson.JsonParseException;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.concurrent.Service;
@@ -33,10 +34,14 @@ import procul.studios.util.*;
 
 import java.awt.*;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -77,6 +82,12 @@ public class ProcelioLauncher extends Application {
         }
     }
 
+    private static final File readmeFile = new File(gameDir, "README.txt");
+
+    private static final File settingsFile = new File(gameDir, "launcherSettings.json");
+
+    private LauncherSettings settings;
+
     // Set by the launcher version check
     private boolean launcherOutOfDate = false;
 
@@ -96,6 +107,23 @@ public class ProcelioLauncher extends Application {
 
     @Override
     public void init() {
+        gameDir.mkdirs();
+        try {
+            settings = EndpointWrapper.gson.fromJson(new FileReader(settingsFile), LauncherSettings.class);
+        } catch (FileNotFoundException | JsonParseException e) {
+            LOG.warn("Unable to load Launcher Setting", e);
+        }
+        if(settings == null)
+            settings = new LauncherSettings();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                String json = EndpointWrapper.gson.toJson(settings);
+                Files.write(settingsFile.toPath(), json.getBytes(StandardCharsets.UTF_8), StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
+                LOG.info("Settings Saved");
+            } catch (IOException e) {
+                LOG.warn("Unable to Save Launcher Settings", e);
+            }
+        }));
         LOG.info("Game Directory: {}", gameDir.getAbsolutePath());
 
         Font.loadFont(ClassLoader.getSystemResource("ShareTech-Regular.ttf").toExternalForm(), -1);
@@ -127,8 +155,11 @@ public class ProcelioLauncher extends Application {
         int height = 540;
         // #setResizable(false) causes weird issues with the background
         primaryStage.setMinWidth(width);
-        primaryStage.setMinHeight(height);
+        primaryStage.setWidth(width);
         primaryStage.setMaxWidth(width);
+
+        primaryStage.setMinHeight(height);
+        primaryStage.setHeight(height);
         primaryStage.setMaxHeight(height);
 
         primaryStage.setTitle("Procelio Launcher v" + launcherVersion);
@@ -342,6 +373,19 @@ public class ProcelioLauncher extends Application {
         if (launcherOutOfDate) { // Don't allow the user to use a launcher that's out of date
             FX.dialog("Launcher Out of Date", "You need to download a new version of the launcher!", Alert.AlertType.WARNING);
             return;
+        }
+        if(!settings.acceptedReadme) {
+            try {
+                String readme = new String(Files.readAllBytes(readmeFile.toPath()));
+                if(!FX.accept("Accept EULA", readme + "Do you accept this EULA?").orElse(false)) {
+                    FX.dialog("EULA Declined", "You must accept the EULA to play the game", Alert.AlertType.WARNING);
+                    return;
+                } else {
+                    settings.acceptedReadme = true;
+                }
+            } catch (IOException e) {
+                LOG.warn("Cannot read readmeFile", e);
+            }
         }
         BuildManifest manifest = null;
         try {
