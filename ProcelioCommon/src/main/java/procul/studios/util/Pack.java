@@ -8,10 +8,11 @@ public class Pack {
     public File zip;
     public long length;
 
-    public Pack(Tuple<Version, Version> bridge, byte[] hash, File zip) {
+    public Pack(Tuple<Version, Version> bridge, byte[] hash, File zip, long length) {
         this.bridge = bridge;
         this.hash = hash;
         this.zip = zip;
+        this.length = length;
     }
 
     public String getHashString(){

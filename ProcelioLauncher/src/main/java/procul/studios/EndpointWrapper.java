@@ -33,6 +33,10 @@ public class EndpointWrapper {
     String osHeaderKey = "X-Operating-System";
     OperatingSystem osHeaderValue = OperatingSystem.get();
 
+    public void getBuildFile() {
+
+    }
+
     public LauncherConfiguration getConfig() throws IOException {
         if(config != null)
             return config;

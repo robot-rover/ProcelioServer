@@ -9,7 +9,6 @@ import procul.studios.pojo.response.LauncherConfiguration;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -24,65 +23,52 @@ public class ProcelioServer {
     public static final Random rn = new Random();
     public static final Gson gson = new Gson();
     public static Server[] serverStatus;
+    private static boolean multiThreaded = true;
 
-    public static void main(String[] args){
+    public static void main(String[] args) throws IOException {
         Configuration config = Configuration.loadConfiguration(configFile);
-        if (args.length > 0) {
-            List<DiffManager> differs = new ArrayList<>();
-            for(File osDir : new File(config.buildFolderPath).listFiles()){
-                differs.add(new DiffManager(config, osDir));
-            }
-            if(args[0].equals("diff"))
-                differs.forEach(DiffManager::createPatches);
-            else if(args[0].equals("rediff")) {
-                differs.forEach(DiffManager::clearPatches);
-                differs.forEach(DiffManager::createPatches);
-            } else if(args[0].equals("package")) {
-                differs.forEach(DiffManager::generatePackages);
-            } else if(args[0].equals("repackage")) {
-                differs.forEach(DiffManager::clearPatches);
-                differs.forEach(DiffManager::generatePackages);
-            } else if(args[0].equals("init")){
-                String configText = Configuration.gson.toJson(config);
-                try (FileWriter out = new FileWriter(configFile, false)) {
-                    out.write(configText);
-                } catch (IOException e) {
-                    LOG.warn("Unable to initialize config file", e);
-                }
-            } else {
-                LOG.error("Unrecognized Option - {}", args[0]);
+        if (args.length > 0 && args[0].equals("init")) {
+            String configText = Configuration.gson.toJson(config);
+            try (FileWriter out = new FileWriter(configFile, false)) {
+                out.write(configText);
+            } catch (IOException e) {
+                LOG.warn("Unable to initialize config file", e);
             }
             return;
         }
-        if(config.launcherConfig == null)
-            config.launcherConfig = LauncherConfiguration.loadConfiguration(new File(config.launcherConfigPath));
-        if(config.partConfig == null)
-            config.partConfig = PartConfiguration.loadConfiguration(new File(config.partConfigPath));
-        List<DiffManager> differs = new ArrayList<>();
-        File buildFolder = new File(config.buildFolderPath);
-        if(!buildFolder.exists())
-            buildFolder.mkdir();
-        for(File osDir : buildFolder.listFiles(File::isDirectory)){
-            differs.add(new DiffManager(config, osDir));
+        if(args.length > 0 && args[0].equals("noThread")) {
+            multiThreaded = false;
         }
-        List<Thread> tList = differs.stream().map(v ->  new Thread(v::generatePackages)).collect(Collectors.toList());
-        tList.forEach(Thread::start);
-        tList.forEach(t -> {
-            try {
-                t.join();
-            } catch (InterruptedException e) {
-                LOG.warn("Interrupted", e);
-            }
-        });
+        if (config.launcherConfig == null)
+            config.launcherConfig = LauncherConfiguration.loadConfiguration(new File(config.launcherConfigPath));
+        if (config.partConfig == null)
+            config.partConfig = PartConfiguration.loadConfiguration(new File(config.partConfigPath));
+        File buildFolder = new File(config.buildFolderPath);
+        if (!buildFolder.exists())
+            buildFolder.mkdir();
+        DiffManager.createDiffManagers(buildFolder);
+        List<Thread> tList = DiffManager.getDiffManagers().stream().map(v -> new Thread(v::createPackages)).collect(Collectors.toList());
+        if(multiThreaded) {
+            tList.forEach(Thread::start);
+            tList.forEach(t -> {
+                try {
+                    t.join();
+                } catch (InterruptedException e) {
+                    LOG.warn("Interrupted", e);
+                }
+            });
+        } else {
+            tList.forEach(Thread::run);
+        }
         Database database = new Database(config);
         AtomicDatabase atomicDatabase = new AtomicDatabase(database.getContext());
         ClientEndpoints clientWrapper = new ClientEndpoints(database.getContext(), config, atomicDatabase);
         ServerEndpoints serverWrapper = new ServerEndpoints(database.getContext(), config, atomicDatabase);
         LauncherEndpoints launcherWrapper = new LauncherEndpoints(config);
         serverStatus = new Server[config.serverLocation.length];
-        if(config.serverKeepAlive)
+        if (config.serverKeepAlive)
             ServerDaemon.startDaemon(60000L, new ServerDaemon(config.serverLocation, serverStatus));
-        else for(int i = 0; i < config.serverLocation.length; i++){
+        else for (int i = 0; i < config.serverLocation.length; i++) {
             serverStatus[i] = new Server(config.serverLocation[i]);
         }
         SparkServer server = new SparkServer(config, clientWrapper, serverWrapper, launcherWrapper);

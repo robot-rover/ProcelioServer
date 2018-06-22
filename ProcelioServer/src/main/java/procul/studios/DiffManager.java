@@ -26,72 +26,120 @@ import java.util.regex.Pattern;
 import static procul.studios.ProcelioServer.gson;
 
 public class DiffManager {
-    public static final Map<OperatingSystem, DiffManager> diffManagers = new HashMap<>();
+    private static Map<OperatingSystem, DiffManager> diffManagers;
     private static final Logger LOG = LoggerFactory.getLogger(DiffManager.class);
     private static final Pattern buildPattern = Pattern.compile("build-(\\d+)\\.(\\d+)\\.(\\d+)");
-    private static final Pattern packagePattern = Pattern.compile("diff-(\\d+)\\.(\\d+)\\.(\\d+)-(\\d+)\\.(\\d+)\\.(\\d+).zip");
-    private final ZipParameters params = new ZipParameters();
-    public File diffDir;
-    public File buildDir;
-    public File zipDir;
-    private List<Tuple<Version, File>> versions;
-    private List<Pack> packages;
-    private Pack currentBuild;
-    private boolean hasDiffed;
-    private boolean buildsExist;
-    private Marker marker;
-    public DiffManager(Configuration config, File osDir){
-        OperatingSystem os = OperatingSystem.parse(osDir.getName());
-        marker = MarkerFactory.getMarker(os.name());
-        hasDiffed = false;
+    private static final Pattern patchPattern = Pattern.compile("diff-(\\d+)\\.(\\d+)\\.(\\d+)-(\\d+)\\.(\\d+)\\.(\\d+).zip");
+
+    private static final ZipParameters params = new ZipParameters();
+    static {
         params.setCompressionMethod(Zip4jConstants.COMP_DEFLATE);
         params.setCompressionLevel(Zip4jConstants.DEFLATE_LEVEL_NORMAL);
-        if(!osDir.exists() && !osDir.mkdir())
-            throw new RuntimeException("Unable to create Diff Directory");
-        diffDir = new File(osDir, "patches");
-        if(!diffDir.exists() && !diffDir.mkdir())
-            throw new RuntimeException("Unable to create Patch Directory");
-        if(!diffDir.isDirectory())
-            throw new RuntimeException("Diff Directory is a File!");
-        buildDir = new File(osDir, "builds");
-        if(!buildDir.exists() && !buildDir.mkdir())
-            throw new RuntimeException("Unable to create Build Directory");
-        if(!buildDir.isDirectory())
-            throw new RuntimeException("Build Directory is a File!");
-        zipDir = new File(osDir, "package");
-        if(!zipDir.exists() && !zipDir.mkdir())
-            throw new RuntimeException("Unable to create Zip Directory");
-        if(!zipDir.isDirectory())
-            throw new RuntimeException("Zip Directory is a File!");
+    }
+
+    private final File patchDir;
+    private final File buildDir;
+    private final File zipDir;
+
+    private final List<Tuple<Version, File>> buildVersions;
+    private final List<Pack> packages;
+    private Pack currentBuild;
+
+    private boolean hasDiffed;
+    private boolean buildsExist;
+
+    private Marker marker;
+    OperatingSystem os;
+
+    public static Map<OperatingSystem, DiffManager> getDiffManagerMap() {
+        return diffManagers;
+    }
+
+    public static Map<OperatingSystem, DiffManager> createDiffManagers(File buildDir) throws IOException {
+        if (!buildDir.exists() && !buildDir.mkdirs()) {
+            throw new IOException("Cannot Create Directory");
+        }
+        diffManagers = new HashMap<>();
+        for (File osDir : buildDir.listFiles(File::isDirectory)) {
+            DiffManager manager = new DiffManager(osDir);
+            diffManagers.put(manager.os, manager);
+        }
+        return diffManagers;
+    }
+
+    public static Collection<DiffManager> getDiffManagers() {
+        return diffManagers.values();
+    }
+
+    private DiffManager(File osDir){
+        hasDiffed = false;
+
+        os = OperatingSystem.parse(osDir.getName());
+        marker = MarkerFactory.getMarker(os.name());
+
+        if(!osDir.exists())
+            throw new RuntimeException("Operating System Directory does not exist");
+        try {
+            buildDir = new File(osDir, "builds");
+            checkDir(buildDir);
+            patchDir = new File(osDir, "patches");
+            checkDir(patchDir);
+            zipDir = new File(osDir, "packages");
+            checkDir(zipDir);
+        } catch (IOException e) {
+            throw new RuntimeException("Cannot Start Diff Manager", e);
+        }
+
         File[] builds = buildDir.listFiles(File::isDirectory);
 
         LOG.info(marker, "DiffManager loaded for {}", os.name());
         LOG.info(marker, "Found {} builds in {}", builds.length, buildDir.getAbsolutePath());
         buildsExist = builds.length != 0;
-        versions = new ArrayList<>();
-        for(File build : builds){
-            Matcher m = buildPattern.matcher(build.getName());
-            if(!m.find())
-                throw new RuntimeException("Unable to parse version from build folder " + build.getAbsolutePath());
-            Tuple<Version, File> versionTuple = new Tuple<>(new Version(m.group(1), m.group(2), m.group(3)), build);
-            versions.add(versionTuple);
-            LOG.info(marker, "\t{}", buildDir.toPath().relativize(versionTuple.getSecond().toPath()));
-        }
-        versions.sort(Comparator.comparing(Tuple::getFirst));
+
+        buildVersions = parseVersions(builds);
         packages = new ArrayList<>();
         diffManagers.put(os, this);
     }
 
-    public List<Tuple<Version, File>> getVersions() {
-        return versions;
+    private List<Tuple<Version, File>> parseVersions(File[] files) {
+        List<Tuple<Version, File>> parsedVersions = new ArrayList<>();
+        for(File build : files){
+            Matcher m = buildPattern.matcher(build.getName());
+            if(!m.find()) {
+                LOG.warn("Unable to parse version from build folder " + build.getAbsolutePath());
+            }
+            Tuple<Version, File> versionTuple = new Tuple<>(new Version(m.group(1), m.group(2), m.group(3)), build);
+            parsedVersions.add(versionTuple);
+            LOG.info(marker, "\t{}", buildDir.toPath().relativize(versionTuple.getSecond().toPath()));
+        }
+        parsedVersions.sort(Comparator.comparing(Tuple::getFirst));
+        return parsedVersions;
+    }
+
+    private static void checkDir(File directory) throws IOException {
+        if(!directory.exists()) {
+            if(directory.mkdirs())
+                return;
+            else
+                throw new IOException("The directory " + directory.getAbsolutePath() + " does not exist and cannot be created");
+        } else {
+            if(directory.isDirectory())
+                return;
+            else
+                throw new IOException("The directory " + directory.getAbsolutePath() + " exists and is a file");
+        }
     }
 
     public List<Pack> getPackages(){
         return packages;
     }
 
-    public Version getNewestVersion(){
-        return versions.stream().map(Tuple::getFirst).max(Version::compareTo).get();
+    public Version getNewestVersion() {
+        return currentBuild.bridge.getSecond();
+    }
+
+    public File getBuildDir() {
+        return buildDir;
     }
 
     public Pack getNewestBuild(){
@@ -99,7 +147,8 @@ public class DiffManager {
     }
 
     public void clearPatches(){
-        FileUtils.deleteRecursive(diffDir);
+        FileUtils.deleteRecursive(patchDir);
+        hasDiffed = false;
         clearPackages();
     }
 
@@ -111,7 +160,7 @@ public class DiffManager {
         if(!buildsExist)
             throw new RuntimeException("Cannot create patches without builds");
         Tuple<Version, File> from = null;
-        for(Tuple<Version, File> version : versions){
+        for(Tuple<Version, File> version : buildVersions){
             buildDiff(from, version);
             from = version;
         }
@@ -124,7 +173,7 @@ public class DiffManager {
         else try {
             LOG.info(marker, "Zipping " + zipDir.toPath().relativize(zipArc.toPath()));
             AppZip zip = new AppZip(sourceDirectory);
-            zip.zipIt(zipArc);
+            zip.zipTo(zipArc);
         } catch (IOException e) {
             LOG.error(marker, "Unable to create pack {}", zipArc.getAbsolutePath(), e);
         }
@@ -156,65 +205,58 @@ public class DiffManager {
         return new Tuple<>(hashBytes, fileLength);
     }
 
-    public void generatePackages(){
+    public void createPackages(){
         if(!hasDiffed && buildsExist)
             createPatches();
 
-        versions = new ArrayList<>();
-        for(File build : (buildsExist ? buildDir : zipDir).listFiles()){
-            Matcher m = buildPattern.matcher(build.getName());
-            if(!m.find()) {
-                LOG.warn(marker, "Unable to parse version from folder " + build.getAbsolutePath());
-                continue;
-            }
-            Tuple<Version, File> versionTuple = new Tuple<>(new Version(m.group(1), m.group(2), m.group(3)), build);
-            versions.add(versionTuple);
-        }
-
         if(buildsExist) {
-            for (File patch : diffDir.listFiles(File::isDirectory)) {
+            for (File patch : patchDir.listFiles(File::isDirectory)) {
                 File zipArc = new File(zipDir, patch.getName() + ".zip");
-                Pack currentPack = packages.stream().filter(v -> v.zip.equals(patch)).findAny().orElseThrow(() -> new RuntimeException("Cannot find version for diff " + patch.getAbsolutePath()));
-                currentPack.zip = zipArc;
                 zipFile(patch, zipArc);
                 LOG.info(marker, "Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
                 Tuple<byte[], Long> packData = hashFile(zipArc);
-                currentPack.hash = packData.getFirst();
-                currentPack.length = packData.getSecond();
+                Matcher m = patchPattern.matcher(zipArc.getName());
+                if(!m.find()) {
+                    LOG.warn("Unable to parse versions from patch {}", patch.getAbsolutePath());
+                    continue;
+                }
+                Tuple<Version, Version> bridge = new Tuple<>(new Version(m.group(1), m.group(2), m.group(3)), new Version(m.group(4), m.group(5), m.group(6)));
+                packages.add(new Pack(bridge, packData.getFirst(), zipArc, packData.getSecond()));
             }
-            File newestBuild = new File(buildDir, "build-" + versions.stream().map(Tuple::getFirst).max(Version::compareTo).get());
+            Version mostRecentVersion = buildVersions.stream().map(Tuple::getFirst).max(Version::compareTo).get();
+            File newestBuild = new File(buildDir, "build-" + mostRecentVersion);
             if(!newestBuild.exists())
                 throw new RuntimeException("Newest build " + newestBuild.getAbsolutePath() + " doesn't exist to be zipped");
             File zipArc = new File(zipDir, newestBuild.getName() + ".zip");
             if(!zipArc.exists())
                 zipFile(newestBuild, zipArc);
             else
-                LOG.info(marker, "Pack " + zipDir.toPath().relativize(zipArc.toPath()) + " already exists, skipping");
+                LOG.info(marker, "Package " + zipDir.toPath().relativize(zipArc.toPath()) + " already exists, skipping");
 
             LOG.info(marker, "Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
             Tuple<byte[], Long> packInfo = hashFile(zipArc);
-            currentBuild = new Pack(null, packInfo.getFirst(), zipArc);
-            currentBuild.length = packInfo.getSecond();
+            currentBuild = new Pack(new Tuple<>(null, mostRecentVersion), packInfo.getFirst(), zipArc, packInfo.getSecond());
         } else {
             for (File zipArc : zipDir.listFiles()) {
-                Matcher m = packagePattern.matcher(zipArc.getName());
+                Matcher m = patchPattern.matcher(zipArc.getName());
                 if(!m.find()) {
-                    LOG.warn(marker, "Skipping package, can't parse version: {}", zipArc.getAbsolutePath());
-                    continue;
+                    Matcher buildMatch = buildPattern.matcher(zipArc.getName());
+                    if(!m.find()) {
+                        LOG.warn(marker, "Skipping package, can't parse version: {}", zipArc.getAbsolutePath());
+                        continue;
+                    }
+                    Version buildVersion = new Version(buildMatch.group(1), buildMatch.group(2), buildMatch.group(3));
+                    if(currentBuild != null && currentBuild.bridge.getSecond().compareTo(buildVersion) > 0)
+                        continue;
+                    LOG.info(marker, "Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
+                    Tuple<byte[], Long> packInfo = hashFile(zipArc);
+                    currentBuild = new Pack(new Tuple<>(null, buildVersion), packInfo.getFirst(), zipArc, packInfo.getSecond());
                 }
                 LOG.info(marker, "Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
                 Tuple<byte[], Long> packData = hashFile(zipArc);
                 Pack currentPack = new Pack(new Tuple<>(new Version(m.group(1), m.group(2), m.group(3)), new Version(m.group(4), m.group(5), m.group(6))),
-                        packData.getFirst(), zipArc);
-                currentPack.length = packData.getSecond();
+                        packData.getFirst(), zipArc, packData.getSecond());
                 packages.add(currentPack);
-            }
-            if(versions.size() > 0) {
-                File zipArc = new File(zipDir, "build-" + versions.stream().map(Tuple::getFirst).max(Version::compareTo).get() + ".zip");
-                LOG.info(marker, "Hashing " + zipDir.toPath().relativize(zipArc.toPath()));
-                Tuple<byte[], Long> packInfo = hashFile(zipArc);
-                currentBuild = new Pack(null, packInfo.getFirst(), zipArc);
-                currentBuild.length = packInfo.getSecond();
             }
         }
 
@@ -230,10 +272,9 @@ public class DiffManager {
         if(base){
             return;
         } else {
-            diff = new File(diffDir, "diff-" + from.getFirst().toString() + "-" + to.getFirst().toString());
-            packages.add(new Pack(new Tuple<>(from.getFirst(), to.getFirst()), null, diff));
+            diff = new File(patchDir, "diff-" + from.getFirst().toString() + "-" + to.getFirst().toString());
         }
-        Tuple<BuildManifest, BuildManifest> buildManifest;
+        Tuple<BuildManifest, BuildManifest> versionBridge;
         try {
             BuildManifest fromManifest = gson.fromJson(new InputStreamReader(new FileInputStream(new File(from.getSecond(), "manifest.json"))), BuildManifest.class);
             fromManifest.baseDir = from.getSecond();
@@ -245,7 +286,7 @@ public class DiffManager {
             if(toManifest.version != null && !new Version(toManifest.version).equals(to.getFirst()))
                 throw new RuntimeException("Filename Version doesn't match manifest version for " + to.getSecond().getAbsolutePath());
             toManifest.init();
-            buildManifest = new Tuple<>(fromManifest, toManifest);
+            versionBridge = new Tuple<>(fromManifest, toManifest);
         } catch (FileNotFoundException e){
             throw new RuntimeException("Missing Build Manifest", e);
         }
@@ -256,28 +297,21 @@ public class DiffManager {
             return;
         }
         PackageManifest manifest = new PackageManifest(diff, new Tuple<>(from.getFirst(), to.getFirst()));
-        manifest.newExec = buildManifest.getSecond().exec;
-        manifest.ignore.addAll(buildManifest.getFirst().ignore);
+        manifest.newExec = versionBridge.getSecond().exec;
+        manifest.ignore.addAll(versionBridge.getFirst().ignore);
         manifest.ignore.remove("manifest.json");
 
         if(!diff.mkdir())
             throw new RuntimeException("Unable to create directory for diff " + diff.getAbsolutePath());
-        if(base) {
-            try {
-                recursiveCopy(to.getSecond(), diff);
-            } catch (IOException e) {
-                throw new RuntimeException("Unable to create diff " + diff.getAbsolutePath(), e);
-            }
-        } else {
-            try {
-                recursiveDiff(from.getSecond(), to.getSecond(), diff, manifest, buildManifest);
-                File manifestFile = new File(diff, "manifest.json");
-                manifestFile.createNewFile();
-                Files.write(manifestFile.toPath(), gson.toJson(manifest).getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
-            } catch (IOException e) {
-                throw new RuntimeException("Unable to create diff " + diff.getAbsolutePath(), e);
-            }
+
+        try {
+            recursiveDiff(from.getSecond(), to.getSecond(), diff, manifest, versionBridge);
+            File manifestFile = new File(diff, "manifest.json");
+            Files.write(manifestFile.toPath(), gson.toJson(manifest).getBytes(), StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to create diff " + diff.getAbsolutePath(), e);
         }
+
     }
 
     private void recursiveDiff(File old, File current, File diff, PackageManifest manifest, Tuple<BuildManifest, BuildManifest> buildManifest) throws IOException {
@@ -290,7 +324,7 @@ public class DiffManager {
             if(buildManifest.getSecond().baseDir.toPath().relativize(newFile.toPath()).equals(Paths.get("manifest.json")))
                 continue;
             if(buildManifest.getSecond().ignore.contains(manifest.getBaseDir().toPath().relativize(newFile.toPath()).toString())){
-                LOG.info(marker, "Ignored " + diffDir.toPath().relativize(newFile.toPath()).toString());
+                LOG.info(marker, "Ignored " + patchDir.toPath().relativize(newFile.toPath()).toString());
                 continue;
             }
             File oldFile = fromOld.stream().filter(v -> v.getName().equals(newFile.getName())).findAny().orElse(null);
@@ -311,13 +345,13 @@ public class DiffManager {
                 FileInputStream currentFileIn = new FileInputStream(newFile);
                 ByteArrayOutputStream currentFileBytes = new ByteArrayOutputStream();
                 IOUtils.copyLarge(new DigestInputStream(currentFileIn, hasher), currentFileBytes);
-                Path subPath = diffDir.toPath().relativize(diff.toPath().resolve(newFile.getName()));
+                Path subPath = patchDir.toPath().relativize(diff.toPath().resolve(newFile.getName()));
                 manifest.filesAndHashes.add(
                         Hashing.printHexBinary(hasher.digest()) + subPath.subpath(1, subPath.getNameCount())
 
                 );
                 if (oldFile == null) {
-                    LOG.info(marker, "Copying " + diffDir.toPath().relativize(diff.toPath().resolve(newFile.getName())).toString());
+                    LOG.info(marker, "Copying " + patchDir.toPath().relativize(diff.toPath().resolve(newFile.getName())).toString());
                     Files.write(diff.toPath().resolve(newFile.getName()), currentFileBytes.toByteArray(), StandardOpenOption.CREATE);
                     //Files.copy(newFile.toPath(), diff.toPath().resolve(newFile.getName()), StandardCopyOption.COPY_ATTRIBUTES);
                 } else {
@@ -326,7 +360,7 @@ public class DiffManager {
                     FileInputStream oldFileIn = new FileInputStream(oldFile);
                     IOUtils.copyLarge(oldFileIn, oldFileBytes);
                     try {
-                        LOG.info(marker, "Diffing " + diffDir.toPath().relativize(diff.toPath().resolve(newFile.getName())).toString());
+                        LOG.info(marker, "Diffing " + patchDir.toPath().relativize(diff.toPath().resolve(newFile.getName())).toString());
                         Diff.diff(oldFileBytes.toByteArray(), currentFileBytes.toByteArray(), new FileOutputStream(new File(diff, newFile.getName() + ".patch")));
                         //FileUI.diff(oldFile, newFile, new File(diff, newFile.getName() + ".patch"));
                     } catch (InvalidHeaderException e) {
@@ -340,7 +374,7 @@ public class DiffManager {
         }
         for (File toRemove : fromOld) {
             if(buildManifest.getFirst().ignore.contains(manifest.getBaseDir().toPath().relativize(toRemove.toPath()).toString()))
-                LOG.info(marker, "Ignored " + diffDir.toPath().relativize(toRemove.toPath()).toString());
+                LOG.info(marker, "Ignored " + patchDir.toPath().relativize(toRemove.toPath()).toString());
             else
                 manifest.delete.add(manifest.getBaseDir().toPath().resolve(toRemove.toPath()).toString());
         }
@@ -357,7 +391,7 @@ public class DiffManager {
                     throw new IOException("Cannot make dir inside recursive copy");
                 recursiveCopy(f, target);
             } else {
-                LOG.info(marker, "Copying " + diffDir.toPath().relativize(to.toPath().resolve(f.getName())).toString());
+                LOG.info(marker, "Copying " + patchDir.toPath().relativize(to.toPath().resolve(f.getName())).toString());
                 Files.copy(f.toPath(), to.toPath().resolve(f.getName()), StandardCopyOption.COPY_ATTRIBUTES);
             }
         }

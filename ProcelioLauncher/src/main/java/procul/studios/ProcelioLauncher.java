@@ -62,8 +62,15 @@ public class ProcelioLauncher extends Application {
     /**
      * Constant determines the endpoint for the Procelio Backend
      */
-    static final String backendEndpoint = "https://www.sovietbot.xyz:8443" /*"http://127.0.0.1"*/;
-
+    static final String backendEndpoint;
+    private static final boolean debugEndpoint = true;
+    static {
+        if(debugEndpoint) {
+            backendEndpoint = "http://127.0.0.1";
+        } else {
+            backendEndpoint = "https://www.sovietbot.xyz:8443";
+        }
+    }
     // Used for callbacks updating progress of a download or patch
     private Tuple<Label, ProgressBar> downloadCallbackTuple;
 
@@ -374,19 +381,6 @@ public class ProcelioLauncher extends Application {
             FX.dialog("Launcher Out of Date", "You need to download a new version of the launcher!", Alert.AlertType.WARNING);
             return;
         }
-        if(!settings.acceptedReadme) {
-            try {
-                String readme = new String(Files.readAllBytes(readmeFile.toPath()));
-                if(!FX.accept("Accept EULA", readme + "Do you accept this EULA?").orElse(false)) {
-                    FX.dialog("EULA Declined", "You must accept the EULA to play the game", Alert.AlertType.WARNING);
-                    return;
-                } else {
-                    settings.acceptedReadme = true;
-                }
-            } catch (IOException e) {
-                LOG.warn("Cannot read readmeFile", e);
-            }
-        }
         BuildManifest manifest = null;
         try {
             // if a manifest exists, load it
@@ -446,6 +440,19 @@ public class ProcelioLauncher extends Application {
     }
 
     public void launchFile(File executable) {
+        if(!settings.acceptedReadme) {
+            try {
+                String readme = new String(Files.readAllBytes(readmeFile.toPath()));
+                if(!FX.accept("Accept EULA", readme + "Do you accept this EULA?").orElse(false)) {
+                    FX.dialog("EULA Declined", "You must accept the EULA to play the game", Alert.AlertType.WARNING);
+                    return;
+                } else {
+                    settings.acceptedReadme = true;
+                }
+            } catch (IOException e) {
+                LOG.warn("Cannot read readmeFile", e);
+            }
+        }
         boolean isReadable = executable.setReadable(true);
         boolean isExecutable = executable.setExecutable(true, false);
         LOG.info("Launching Procelio from {} - R:{}, X:{}", executable.getAbsolutePath(), isReadable, isExecutable);

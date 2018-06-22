@@ -26,15 +26,15 @@ public class AppZip {
         this.source = source;
     }
 
-    public static void zipit(File sourceFolder, File zipFile) throws IOException {
-        new AppZip(sourceFolder).zipIt(zipFile);
+    public static void zip(File sourceFolder, File zipFile) throws IOException {
+        new AppZip(sourceFolder).zipTo(zipFile);
     }
 
     /**
      * Zip it
      * @param zipFile output ZIP file location
      */
-    public void zipIt(File zipFile) throws IOException {
+    public void zipTo(File zipFile) throws IOException {
         generateFileList(source);
         Path manifest = Paths.get("manifest.json");
         try (ZipOutputStream out = new ZipOutputStream(new FileOutputStream(zipFile))) {
@@ -47,7 +47,7 @@ public class AppZip {
                 out.putNextEntry(entry);
 
                 try (FileInputStream in = new FileInputStream(source.toPath().resolve(manifest).toFile())) {
-                    copyLarge(in, out);
+                    copy(in, out);
                 }
             }
             for(Path file : this.fileList){
@@ -56,8 +56,7 @@ public class AppZip {
                 out.putNextEntry(entry);
 
                 try (FileInputStream in = new FileInputStream(source.toPath().resolve(file).toFile())) {
-                    //todo: useCopyLarge for large streams
-                    copyLarge(in, out);
+                    copy(in, out);
                 }
             }
 
@@ -71,7 +70,6 @@ public class AppZip {
      * @param node file or directory
      */
     private void generateFileList(File node){
-
         //add file only
         if(node.isFile()){
             fileList.add(generateZipEntry(node));
@@ -111,7 +109,7 @@ public class AppZip {
      * @throws IOException if an I/O error occurs
      * @since Commons IO 2.2
      */
-    public static long copyLarge(final InputStream input, final OutputStream output)
+    public static long copy(final InputStream input, final OutputStream output)
             throws IOException {
         byte[] buffer = new byte[DEFAULT_BUFFER_SIZE];
         long count = 0;

@@ -38,7 +38,7 @@ public class LauncherEndpoints {
         } catch (NumberFormatException e){
             ex("Invalid Operating System Value", 400);
         }
-        DiffManager differ = DiffManager.diffManagers.get(OperatingSystem.values()[osIndex]);
+        DiffManager differ = DiffManager.getDiffManagerMap().get(OperatingSystem.values()[osIndex]);
         if(differ == null)
             ex("Unsupported Operating System", 400);
         return differ;
@@ -48,6 +48,7 @@ public class LauncherEndpoints {
         return gson.toJson(config.launcherConfig);
     }
 
+    //todo: reimplement using build package (can't guarantee that builds are present)
     public Object getBuildFile(Request req, Response res){
         res.header("Content-Type", "application/octet-stream");
         Version buildVersion = getVersion(req.params(":build"));
@@ -56,8 +57,8 @@ public class LauncherEndpoints {
             return ex("No File Specified", 400);
         }
         DiffManager differ = getDiffer(req);
-        Path requestedFile = differ.buildDir.toPath().resolve("build-" + buildVersion.toString()).resolve(filePath[0]);
-        if(!requestedFile.normalize().startsWith(differ.buildDir.toPath())) {
+        Path requestedFile = differ.getBuildDir().toPath().resolve("build-" + buildVersion.toString()).resolve(filePath[0]);
+        if(!requestedFile.normalize().startsWith(differ.getBuildDir().toPath())) {
             return ex(requestedFile.toString() + " is not a valid file", 400);
         }
         File file = requestedFile.toFile();
@@ -71,28 +72,6 @@ public class LauncherEndpoints {
         }
         return res.raw();
     }
-
-    /*public Object getIcon(Request req, Response res){
-        res.header("Content-Type","image/" + FileUtils.getFileExtension(config.iconPath));
-        try (OutputStream out = res.raw().getOutputStream();
-             InputStream in = new FileInputStream(config.iconPath)){
-            IOUtils.copyLarge(in, out);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return res.raw();
-    }
-
-    public Object getLogo(Request req, Response res){
-        res.header("Content-Type","image/png");
-        try (OutputStream out = res.raw().getOutputStream();
-             InputStream in = new FileInputStream(config.logoPath)){
-            IOUtils.copyLarge(in, out);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return res.raw();
-    }*/
 
     public Object fullBuild(Request req, Response res){
         res.header("Content-Type", "application/zip");

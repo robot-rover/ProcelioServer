@@ -2,12 +2,14 @@ package procul.studios;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.annotations.Expose;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.pojo.response.LauncherConfiguration;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
@@ -35,7 +37,7 @@ public class Configuration {
     private static Logger LOG = LoggerFactory.getLogger(Configuration.class);
 
     public Configuration() {
-        partConfigPath = "";
+        serverKeepAlive = false;
         keystorePassB64 = null;
         keystorePath = null;
         databasePath = "";
@@ -43,6 +45,8 @@ public class Configuration {
         serverLocation = new String[0];
         serverKeyB64 = "";
         buildFolderPath = "";
+        partConfigPath = "";
+        launcherConfigPath = "";
     }
 
     public String getKeystorePass(){
