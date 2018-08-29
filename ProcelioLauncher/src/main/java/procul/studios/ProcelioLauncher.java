@@ -57,13 +57,13 @@ public class ProcelioLauncher extends Application {
     /**
      * Constant determines the version of the launcher build
      */
-    private static final Version launcherVersion = new Version(0, 0, 2);
+    private static final Version launcherVersion = new Version(0, 0, 3);
 
     /**
      * Constant determines the endpoint for the Procelio Backend
      */
     static final String backendEndpoint;
-    private static final boolean debugEndpoint = true;
+    private static final boolean debugEndpoint = false;
     static {
         if(debugEndpoint) {
             backendEndpoint = "http://127.0.0.1";
