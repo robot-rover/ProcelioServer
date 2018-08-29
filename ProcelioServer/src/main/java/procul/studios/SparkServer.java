@@ -86,6 +86,6 @@ public class SparkServer {
     }
 
     public String status(Request req, Response res) {
-        return gson.toJson(new Message("Status 100: OK"));
+        return gson.toJson(new Message("Status 100: OK", 100));
     }
 }
