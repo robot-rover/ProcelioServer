@@ -443,7 +443,7 @@ public class ProcelioLauncher extends Application {
         if(!settings.acceptedReadme) {
             try {
                 String readme = new String(Files.readAllBytes(readmeFile.toPath()));
-                if(!FX.accept("Accept EULA", readme + "Do you accept this EULA?").orElse(false)) {
+                if(!FX.acceptLong("Accept EULA", readme, "Do you accept this EULA?").orElse(false)) {
                     FX.dialog("EULA Declined", "You must accept the EULA to play the game", Alert.AlertType.WARNING);
                     return;
                 } else {

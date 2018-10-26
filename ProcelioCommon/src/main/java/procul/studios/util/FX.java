@@ -2,10 +2,9 @@ package procul.studios.util;
 
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.*;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import java.util.Optional;
@@ -72,6 +71,46 @@ public class FX {
 
         //Fix for Linux text cutoff
         alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.get() == ButtonType.OK){
+            return Optional.of(true);
+        } else {
+            return Optional.of(false);
+        }
+    }
+
+    public static Optional<Boolean> acceptLong(String title, String scroll, String content) {
+        if(!Platform.isFxApplicationThread()){
+            CountDownLatch latch = new CountDownLatch(1);
+            final Boolean[] result = new Boolean[]{false};
+            Platform.runLater(() -> {result[0] = acceptLong(title, scroll, content).orElse(false); latch.countDown();});
+            try {
+                latch.await();
+            } catch (InterruptedException e) {
+                return Optional.empty();
+            }
+            return Optional.ofNullable(result[0]);
+        }
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(title);
+        VBox alertRoot = new VBox();
+        alert.getDialogPane().setContent(alertRoot);
+        alert.getDialogPane().setMaxWidth(600);
+
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setFitToWidth(true);
+        alertRoot.getChildren().add(scrollPane);
+
+        Label alertText = new Label(scroll);
+        alertText.setWrapText(true);
+        scrollPane.setContent(alertText);
+
+        Label notScroll = new Label(content);
+        alertRoot.getChildren().add(notScroll);
+
+        //Fix for Linux text cutoff
+        //alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
 
         Optional<ButtonType> result = alert.showAndWait();
         if (result.get() == ButtonType.OK){
