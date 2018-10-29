@@ -66,6 +66,19 @@ task execute(type:JavaExec) {
     jvmArgs = ['--add-modules', 'java.xml.bind']
 }
 
+task executeMem(type:JavaExec) {
+    main = mainClassName
+    classpath = sourceSets.main.runtimeClasspath
+    jvmArgs = ['--add-modules', 'java.xml.bind', '-Xms2g', '-Xmx5g']
+}
+
+task executeNT(type:JavaExec) {
+    main = mainClassName
+    classpath = sourceSets.main.runtimeClasspath
+    jvmArgs = ['--add-modules', 'java.xml.bind', '-Xms2g', '-Xmx5g']
+		args = ["noThread"]
+}
+
 shadowJar {
     baseName = 'ProcelioServer'
     classifier = null
