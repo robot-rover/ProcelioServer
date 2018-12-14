@@ -1,8 +1,9 @@
 package procul.studios;
 
-import com.google.gson.GsonBuilder;
-import org.apache.http.auth.AUTH;
-import org.jooq.*;
+import org.jooq.DSLContext;
+import org.jooq.Record1;
+import org.jooq.Record2;
+import org.jooq.Record8;
 import org.mindrot.jbcrypt.BCrypt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,9 +11,6 @@ import procul.studios.pojo.Part;
 import procul.studios.pojo.PartTuple;
 import procul.studios.pojo.Robot;
 import procul.studios.pojo.request.Authenticate;
-
-import static procul.studios.sqlbindings.Tables.*;
-
 import procul.studios.pojo.response.Message;
 import procul.studios.pojo.response.Token;
 import procul.studios.pojo.response.User;
@@ -20,26 +18,33 @@ import procul.studios.util.GsonSerialize;
 import procul.studios.util.GsonTuple;
 import spark.Request;
 import spark.Response;
+
 import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletResponse;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
-import static procul.studios.ProcelioServer.gson;
 import static procul.studios.ProcelioServer.rn;
 import static procul.studios.SparkServer.ex;
+import static procul.studios.sqlbindings.Tables.AUTHTABLE;
+import static procul.studios.sqlbindings.Tables.USERTABLE;
+import static procul.studios.util.GsonSerialize.gson;
 
 public class ClientEndpoints {
     private static Logger LOG = LoggerFactory.getLogger(ClientEndpoints.class);

@@ -1,6 +1,5 @@
 package procul.studios;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
@@ -25,9 +24,9 @@ import java.security.NoSuchAlgorithmException;
 import java.util.function.Consumer;
 
 import static procul.studios.ProcelioLauncher.backendEndpoint;
+import static procul.studios.util.GsonSerialize.gson;
 
 public class EndpointWrapper {
-    static final Gson gson = new Gson();
     private static final Logger LOG = LoggerFactory.getLogger(EndpointWrapper.class);
     LauncherConfiguration config;
     String osHeaderKey = "X-Operating-System";

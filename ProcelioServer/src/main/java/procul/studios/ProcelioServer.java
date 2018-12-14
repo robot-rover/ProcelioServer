@@ -1,14 +1,17 @@
 package procul.studios;
 
-import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.pojo.Server;
 import procul.studios.pojo.response.LauncherConfiguration;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -19,35 +22,38 @@ import java.util.stream.Collectors;
 //todo: add class description
 public class ProcelioServer {
     private static Logger LOG = LoggerFactory.getLogger(ProcelioServer.class);
-    public static final File configFile = new File("./config.json");
+    public static final Path configFile = Paths.get("./config.json").normalize();
     public static final Random rn = new Random();
-    public static final Gson gson = new Gson();
     public static Server[] serverStatus;
     private static boolean multiThreaded = true;
 
     public static void main(String[] args) throws IOException {
-        Configuration config = Configuration.loadConfiguration(configFile);
         if (args.length > 0 && args[0].equals("init")) {
-            String configText = Configuration.gson.toJson(config);
-            try (FileWriter out = new FileWriter(configFile, false)) {
+            String configText = Configuration.gson.toJson(new Configuration());
+            try (Writer out = Files.newBufferedWriter(configFile, StandardOpenOption.CREATE_NEW)) {
                 out.write(configText);
             } catch (IOException e) {
                 LOG.warn("Unable to initialize config file", e);
             }
             return;
         }
+        Configuration config = Configuration.loadConfiguration(configFile, Configuration.class);
         if(args.length > 0 && args[0].equals("noThread")) {
             multiThreaded = false;
         }
-        if (config.launcherConfig == null)
-            config.launcherConfig = LauncherConfiguration.loadConfiguration(new File(config.launcherConfigPath));
-        if (config.partConfig == null)
-            config.partConfig = PartConfiguration.loadConfiguration(new File(config.partConfigPath));
-        File buildFolder = new File(config.buildFolderPath);
-        if (!buildFolder.exists())
-            buildFolder.mkdir();
-        DiffManager.createDiffManagers(buildFolder);
-        List<Thread> tList = DiffManager.getDiffManagers().stream().map(v -> new Thread(v::createPackages)).collect(Collectors.toList());
+        if (config.launcherConfigPath != null)
+            config.launcherConfig = Configuration.loadConfiguration(Paths.get(config.launcherConfigPath), LauncherConfiguration.class);
+        if (config.partConfigPath != null)
+            config.partConfig = Configuration.loadConfiguration(Paths.get(config.partConfigPath), PartConfiguration.class);
+        Path buildFolder = Paths.get(config.buildFolderPath);
+        Collection<DiffManager> diffMangers = DiffManager.createDiffManagers(buildFolder).values();
+        List<Thread> tList = diffMangers.stream().map(v -> new Thread(() -> {
+            try {
+                v.findPackages();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        })).collect(Collectors.toList());
         if(multiThreaded) {
             tList.forEach(Thread::start);
             tList.forEach(t -> {

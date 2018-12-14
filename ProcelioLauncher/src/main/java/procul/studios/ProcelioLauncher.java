@@ -27,24 +27,20 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import procul.studios.pojo.BuildManifest;
+import procul.studios.delta.BuildManifest;
 import procul.studios.pojo.Server;
 import procul.studios.pojo.response.LauncherConfiguration;
 import procul.studios.util.*;
 
 import java.awt.*;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.LinkOption;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+
+import static procul.studios.util.GsonSerialize.gson;
 
 /**
  * Main Class for the Procelio Game Launcher
@@ -77,21 +73,25 @@ public class ProcelioLauncher extends Application {
     /**
      * Directory to install the game
      */
-    static final File gameDir = new File(System.getProperty("user.home"), ".ProcelioGame");
+    static final Path gameDir = Paths.get(System.getProperty("user.home"), ".ProcelioGame");
     static {
-        gameDir.mkdirs();
+        try {
+            Files.createDirectories(gameDir);
+        } catch (IOException e) {
+            LOG.error("Cannot create game directory", e);
+        }
         if(OperatingSystem.get().equals(OperatingSystem.WINDOWS)) {
             try {
-                Files.setAttribute(gameDir.toPath(), "dos:hidden", Boolean.TRUE, LinkOption.NOFOLLOW_LINKS);
+                Files.setAttribute(gameDir, "dos:hidden", Boolean.TRUE, LinkOption.NOFOLLOW_LINKS);
             } catch (IOException e) {
                 LOG.error("Cannot hide game folder");
             }
         }
     }
 
-    private static final File readmeFile = new File(gameDir, "README.txt");
+    private static final Path readmeFile = gameDir.resolve("README.txt");
 
-    private static final File settingsFile = new File(gameDir, "launcherSettings.json");
+    private static final Path settingsFile = gameDir.resolve("launcherSettings.json");
 
     private LauncherSettings settings;
 
@@ -114,24 +114,23 @@ public class ProcelioLauncher extends Application {
 
     @Override
     public void init() {
-        gameDir.mkdirs();
         try {
-            settings = EndpointWrapper.gson.fromJson(new FileReader(settingsFile), LauncherSettings.class);
-        } catch (FileNotFoundException | JsonParseException e) {
+            settings = gson.fromJson(Files.newBufferedReader(settingsFile), LauncherSettings.class);
+        } catch (JsonParseException | IOException e) {
             LOG.warn("Unable to load Launcher Setting", e);
         }
         if(settings == null)
             settings = new LauncherSettings();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
-                String json = EndpointWrapper.gson.toJson(settings);
-                Files.write(settingsFile.toPath(), json.getBytes(StandardCharsets.UTF_8), StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
+                String json = gson.toJson(settings);
+                Files.write(settingsFile, json.getBytes(StandardCharsets.UTF_8), StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
                 LOG.info("Settings Saved");
             } catch (IOException e) {
                 LOG.warn("Unable to Save Launcher Settings", e);
             }
         }));
-        LOG.info("Game Directory: {}", gameDir.getAbsolutePath());
+        LOG.info("Game Directory: {}", gameDir);
 
         Font.loadFont(ClassLoader.getSystemResource("ShareTech-Regular.ttf").toExternalForm(), -1);
         LOG.info("Current Module: {}", this.getClass().getModule());
@@ -143,7 +142,11 @@ public class ProcelioLauncher extends Application {
 
         wrapper = new EndpointWrapper();
 
-        patcher = new Patcher(wrapper, this::updateProgressVisible, this::updateProgressBar, this::updateProgressStatus);
+        try {
+            patcher = new Patcher(gameDir, wrapper, this::updateProgressVisible, this::updateProgressBar, this::updateProgressStatus);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         // Launcher Version Check
         try {
@@ -384,14 +387,14 @@ public class ProcelioLauncher extends Application {
         BuildManifest manifest = null;
         try {
             // if a manifest exists, load it
-            if (gameDir.exists() && new File(gameDir, "manifest.json").exists()) {
+            if (Files.exists(gameDir) && Files.exists(gameDir.resolve("manifest.json"))) {
                 manifest = patcher.loadManifest();
             }
 
             // if a manifest doesn't exist or isn't valid, download a fresh install of the game and then launch
-            if (!gameDir.exists() || !new File(gameDir, "manifest.json").exists() || manifest == null || manifest.exec == null || manifest.version == null) {
+            if (manifest == null || manifest.exec == null || manifest.version == null) {
                 manifest = patcher.freshBuild();
-                launchFile(new File(gameDir, manifest.exec));
+                launchFile(gameDir.resolve(manifest.exec));
                 return;
             }
         } catch (IOException e) {
@@ -415,7 +418,7 @@ public class ProcelioLauncher extends Application {
         }
 
         // even if patch failed, still run the game
-        launchFile(new File(gameDir, manifest.exec));
+        launchFile(gameDir.resolve(manifest.exec));
     }
 
 
@@ -439,10 +442,10 @@ public class ProcelioLauncher extends Application {
         Platform.runLater(() -> downloadCallbackTuple.getFirst().getParent().setVisible(visible));
     }
 
-    public void launchFile(File executable) {
+    public void launchFile(Path executable) {
         if(!settings.acceptedReadme) {
             try {
-                String readme = new String(Files.readAllBytes(readmeFile.toPath()));
+                String readme = new String(Files.readAllBytes(readmeFile));
                 if(!FX.acceptLong("Accept EULA", readme, "Do you accept this EULA?").orElse(false)) {
                     FX.dialog("EULA Declined", "You must accept the EULA to play the game", Alert.AlertType.WARNING);
                     return;
@@ -453,13 +456,17 @@ public class ProcelioLauncher extends Application {
                 LOG.warn("Cannot read readmeFile", e);
             }
         }
-        boolean isReadable = executable.setReadable(true);
-        boolean isExecutable = executable.setExecutable(true, false);
-        LOG.info("Launching Procelio from {} - R:{}, X:{}", executable.getAbsolutePath(), isReadable, isExecutable);
+        boolean isReadable = executable.toFile().setReadable(true);
+        boolean isExecutable = executable.toFile().setExecutable(true, false);
+        LOG.info("Launching Procelio from {} - R:{}, X:{}", executable, isReadable, isExecutable);
 
         Server[] servers;
         String hostname;
-        LOG.info(Arrays.toString(executable.getParentFile().list()));
+        try {
+            LOG.info(Files.newDirectoryStream(executable.getParent()).toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         try {
             servers = wrapper.getServers();
             hostname = servers[0].hostname;
@@ -473,8 +480,9 @@ public class ProcelioLauncher extends Application {
         }
         Process game;
         try {
-            LOG.info("Running {} in directory {} - Exists: {}", gameDir.toPath().relativize(executable.toPath()), gameDir, executable.exists());
-            game = new ProcessBuilder(executable.getAbsolutePath(), "-IP", hostname, "-PORT", "7777", "-client").directory(gameDir).inheritIO().start();
+            LOG.info("Running {} in directory {} - Exists: {}", gameDir.relativize(executable), gameDir, Files.exists(executable));
+
+            game = new ProcessBuilder(executable.normalize().toString(), "-IP", hostname, "-PORT", "7777", "-client").directory(gameDir.toFile()).redirectErrorStream(true).start();
             Platform.runLater(() -> primaryStage.setIconified(true));
         } catch (IOException e) {
             LOG.error("Unable to launch Procelio", e);
@@ -483,10 +491,13 @@ public class ProcelioLauncher extends Application {
         }
         try {
             game.waitFor();
+            LOG.info("Procelio Output ->\n", new String(game.getInputStream().readAllBytes()));
         } catch (InterruptedException e) {
             LOG.warn("Un-Iconify started early", e);
+        } catch (IOException e) {
+            LOG.warn("IOException displaying game output");
         }
-        LOG.info(executable.getAbsolutePath() + " Exited");
+        LOG.info(executable + " Exited");
         Platform.runLater(() -> {
             primaryStage.setIconified(false);
             primaryStage.toFront();

@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import static procul.studios.ProcelioServer.gson;
+import static procul.studios.util.GsonSerialize.gson;
 
 public class PartConfiguration {
     private static Logger LOG = LoggerFactory.getLogger(PartConfiguration.class);

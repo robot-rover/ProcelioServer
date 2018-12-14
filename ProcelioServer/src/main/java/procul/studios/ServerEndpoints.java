@@ -1,7 +1,6 @@
 package procul.studios;
 
 import org.jooq.DSLContext;
-import org.jooq.Record1;
 import org.jooq.Record2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,8 +13,9 @@ import spark.Spark;
 import java.time.Instant;
 
 import static procul.studios.SparkServer.ex;
-import static procul.studios.sqlbindings.Tables.*;
-import static procul.studios.ProcelioServer.gson;
+import static procul.studios.sqlbindings.Tables.AUTHTABLE;
+import static procul.studios.sqlbindings.Tables.USERTABLE;
+import static procul.studios.util.GsonSerialize.gson;
 
 public class ServerEndpoints {
     private static Logger LOG = LoggerFactory.getLogger(ServerEndpoints.class);

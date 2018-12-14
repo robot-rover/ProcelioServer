@@ -1,0 +1,17 @@
+
+apply plugin: 'java'
+
+group 'procul.studios'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile project(":ProcelioCommon")
+    compile project(":ProcelioServer")
+    compile project(":ProcelioLauncher")
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}

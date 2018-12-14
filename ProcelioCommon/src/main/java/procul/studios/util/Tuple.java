@@ -1,5 +1,7 @@
 package procul.studios.util;
 
+import java.util.Objects;
+
 public class Tuple<V, T> {
     protected V first;
     protected T second;
@@ -33,8 +35,15 @@ public class Tuple<V, T> {
             return true;
         if(Tuple.class.isAssignableFrom(obj.getClass())){
             Tuple cast = (Tuple) obj;
-            return (first == null ? cast.first == null : first.equals(cast.first)) && (second == null ? cast.second == null : second.equals(cast.second));
+            return (Objects.equals(first, cast.first)) && (Objects.equals(second, cast.second));
         }
         return false;
+    }
+
+    @Override
+    public String toString() {
+        if(first.getClass().isArray() && first.getClass().getComponentType().equals(byte.class))
+            return Hashing.printHexBinary((byte[]) first) + " | " + second.toString();
+        return first.toString() + " | " + second.toString();
     }
 }

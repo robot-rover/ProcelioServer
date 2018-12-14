@@ -9,7 +9,7 @@ public class Hashing {
         try {
             return MessageDigest.getInstance("MD5");
         } catch (NoSuchAlgorithmException e) {
-            return null;
+            throw new RuntimeException("Environment does not support MD5 hashes");
         }
     }
 

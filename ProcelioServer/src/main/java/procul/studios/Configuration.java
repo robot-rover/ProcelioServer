@@ -6,11 +6,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.pojo.response.LauncherConfiguration;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Base64;
 
 public class Configuration {
@@ -28,8 +28,8 @@ public class Configuration {
     public String buildFolderPath;
     //In Seconds
     public int timeout;
-    public PartConfiguration partConfig;
-    public LauncherConfiguration launcherConfig;
+    transient public PartConfiguration partConfig;
+    transient public LauncherConfiguration launcherConfig;
     public String launcherConfigPath;
 
     //use own gson for pretty printing
@@ -61,16 +61,12 @@ public class Configuration {
         return new String(Base64.getDecoder().decode(serverKeyB64), StandardCharsets.UTF_8);
     }
 
-    public static Configuration loadConfiguration(File file) {
-        Configuration config;
-        try (FileReader reader = new FileReader(file)){
-            config = gson.fromJson(reader, Configuration.class);
-        } catch (FileNotFoundException e) {
-            LOG.error("Configuration file does not exist at {}, using default...", file.getAbsolutePath());
-            config = new Configuration();
+    public static <T> T loadConfiguration(Path path, Class<T> type) throws IOException {
+        T config;
+        try (Reader reader = Files.newBufferedReader(path)){
+            config = gson.fromJson(reader, type);
         } catch (IOException e) {
-            LOG.error("Unable to read configuration file at " + file.getAbsolutePath() + ", using default...", e);
-            config = new Configuration();
+            throw new IOException("Unable to read configuration file at " + path, e);
         }
         return config;
     }

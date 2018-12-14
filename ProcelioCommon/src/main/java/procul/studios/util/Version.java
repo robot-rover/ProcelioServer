@@ -29,6 +29,8 @@ public class Version implements Comparable<Version> {
 
     @Override
     public int compareTo(Version o) {
+        if(o == null)
+            return 1;
         if(major != o.major)
             return major - o.major;
         if(minor != o.minor)

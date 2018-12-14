@@ -3,10 +3,6 @@ version 'main'
 
 apply plugin: 'java'
 
-repositories {
-    mavenCentral()
-}
-
 subprojects {
     afterEvaluate {
         compileJava {
@@ -24,5 +20,4 @@ subprojects {
 }
 
 dependencies {
-    testCompile group: 'junit', name: 'junit', version: '4.12'
 }

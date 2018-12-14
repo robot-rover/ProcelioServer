@@ -9,8 +9,8 @@ import spark.Spark;
 
 import java.util.stream.Collectors;
 
+import static procul.studios.util.GsonSerialize.gson;
 import static spark.Spark.*;
-import static procul.studios.ProcelioServer.gson;
 
 /**
  *

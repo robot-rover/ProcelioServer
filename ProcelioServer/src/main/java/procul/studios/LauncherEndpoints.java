@@ -1,21 +1,25 @@
 package procul.studios;
 
+import procul.studios.delta.DeltaPack;
 import procul.studios.pojo.response.LauncherDownload;
-import procul.studios.util.*;
+import procul.studios.util.Hashing;
+import procul.studios.util.OperatingSystem;
+import procul.studios.util.Tuple;
+import procul.studios.util.Version;
 import spark.Request;
 import spark.Response;
 import spark.utils.IOUtils;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static procul.studios.ProcelioServer.gson;
 import static procul.studios.SparkServer.ex;
+import static procul.studios.util.GsonSerialize.gson;
 
 public class LauncherEndpoints {
     private static final Pattern packagePattern = Pattern.compile("(\\d+)\\.(\\d+)\\.(\\d+)-(\\d+)\\.(\\d+)\\.(\\d+)");
@@ -57,8 +61,8 @@ public class LauncherEndpoints {
             return ex("No File Specified", 400);
         }
         DiffManager differ = getDiffer(req);
-        Path requestedFile = differ.getBuildDir().toPath().resolve("build-" + buildVersion.toString()).resolve(filePath[0]);
-        if(!requestedFile.normalize().startsWith(differ.getBuildDir().toPath())) {
+        Path requestedFile = differ.getBuildDir().resolve("build-" + buildVersion.toString()).resolve(filePath[0]);
+        if(!requestedFile.normalize().startsWith(differ.getBuildDir())) {
             return ex(requestedFile.toString() + " is not a valid file", 400);
         }
         File file = requestedFile.toFile();
@@ -75,10 +79,10 @@ public class LauncherEndpoints {
 
     public Object fullBuild(Request req, Response res){
         res.header("Content-Type", "application/zip");
-        res.header("Content-MD5", Hashing.printHexBinary(getDiffer(req).getNewestBuild().hash));
-        res.header("Content-Length", String.valueOf(getDiffer(req).getNewestBuild().length));
+        res.header("Content-MD5", Hashing.printHexBinary(getDiffer(req).getNewestBuild().getHash()));
+        res.header("Content-Length", String.valueOf(getDiffer(req).getNewestBuild().getLength()));
         try (OutputStream out = res.raw().getOutputStream();
-             InputStream in = new FileInputStream(getDiffer(req).getNewestBuild().zip)){
+             InputStream in = Files.newInputStream(getDiffer(req).getNewestBuild().getArchive())){
             IOUtils.copyLarge(in, out);
         } catch (IOException e) {
             e.printStackTrace();
@@ -89,14 +93,14 @@ public class LauncherEndpoints {
     public Object getPatch(Request req, Response res){
         String version = req.params(":patch");
         Tuple<Version, Version> patchVersion = getPatchVersion(version);
-        Pack pack = getDiffer(req).getPackages().stream().filter(v -> v.bridge.equals(patchVersion)).findAny().orElse(null);
+        DeltaPack pack = getDiffer(req).getDeltaPacks().stream().filter(v -> v.getVersionBridge().equals(patchVersion)).findAny().orElse(null);
         if(pack == null)
             return ex("Patch could not be found", 404);
         res.header("Content-Type", "application/zip");
-        res.header("Content-MD5", Hashing.printHexBinary(pack.hash));
-        res.header("Content-Length", String.valueOf(pack.length));
+        res.header("Content-MD5", Hashing.printHexBinary(pack.getHash()));
+        res.header("Content-Length", String.valueOf(pack.getLength()));
         try (OutputStream out = res.raw().getOutputStream();
-             InputStream in = new FileInputStream(pack.zip)){
+             InputStream in = Files.newInputStream(pack.getArchive())){
             IOUtils.copyLarge(in, out);
         } catch (IOException e) {
             e.printStackTrace();
@@ -110,31 +114,14 @@ public class LauncherEndpoints {
         if (currentVersionString == null)
             return gson.toJson(new LauncherDownload("/launcher/build", false, config.launcherConfig.launcherVersion));
         Version currentVersion = getVersion(currentVersionString);
-        List<Pack> packages = getDiffer(req).getPackages();
-        List<Tuple<Version, Version>> neededPackages = new ArrayList<>();
-        Version goal = getDiffer(req).getNewestVersion();
-        boolean upToDate = currentVersion.equals(goal);
+        List<DeltaPack> neededPackages = getDiffer(req).assemblePatchList(currentVersion);
+        boolean upToDate = currentVersion.equals(getDiffer(req).getNewestVersion());
         LauncherDownload result = new LauncherDownload("/launcher/build", upToDate, config.launcherConfig.launcherVersion);
-        if(upToDate)
+        if(upToDate || neededPackages.size() == 0)
             return gson.toJson(result);
-        while(!currentVersion.equals(goal)){
-            boolean found = false;
-            for(Pack pack : packages){
-                if(pack.bridge.getFirst().equals(currentVersion)) {
-                    found = true;
-                    neededPackages.add(pack.bridge);
-                    currentVersion = pack.bridge.getSecond();
-                    break;
-                }
-            }
-            if(!found){
-                return gson.toJson(result);
-            }
-        }
-        neededPackages.sort(Comparator.comparing(Tuple::getFirst));
         result.patches = new ArrayList<>();
         for(int i = 0; i < neededPackages.size(); i++){
-            result.patches.add("/launcher/patch/" + neededPackages.get(i).getFirst() + "-" + neededPackages.get(i).getSecond());
+            result.patches.add("/launcher/patch/" + neededPackages.get(i).getSource() + "-" + neededPackages.get(i).getTarget());
         }
         return gson.toJson(result);
     }
