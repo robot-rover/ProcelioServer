@@ -14,6 +14,7 @@ import procul.studios.util.*;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
@@ -111,8 +112,10 @@ public class Patcher {
                         LOG.warn("File is missing {}", toPatch);
                         continue;
                     }
-                    byte[] oldFileBytes = Files.readAllBytes(toPatch);
-                    try (OutputStream patchedOut = Files.newOutputStream(toPatch)) {
+                    Path sourcePath = Paths.get(toPatch.toString() + ".old" + System.currentTimeMillis());
+                    Files.move(toPatch, sourcePath);
+                    try(InputStream sourceStream = Files.newInputStream(sourcePath);
+                        OutputStream patchedOut = Files.newOutputStream(toPatch)) {
                         ByteBufferOutputStream patchStream = new ByteBufferOutputStream();
                         readEntry(zipStream, buffer, patchStream);
 //                        Patch.patch(oldBytes, patchStream.toByteArray(), patchedOut);
@@ -121,11 +124,9 @@ public class Patcher {
                         int newFileLength = BytesUtil.readInt(new ByteArrayInputStream(patchStream.getBuf()));
                         byte[] patchBytes = new byte[patchStream.getCount()-4];
                         System.arraycopy(patchStream.getBuf(), 4, patchBytes, 0, patchBytes.length);
-                        int size = Math.toIntExact(Math.max(oldFileBytes.length, newFileLength));
-                        LOG.trace("Block size: {}, Old File: {}, New File: {}", size, oldFileBytes.length, newFileLength);
+                        int size = Math.toIntExact(Math.max(Files.size(sourcePath), newFileLength));
+                        LOG.trace("Block size: {}, Old File: {}, New File: {}", size, Files.size(sourcePath), newFileLength);
                         final int blockSize = 1024*1024;
-                        byte[] oldBytes = new byte[size];
-                        System.arraycopy(oldFileBytes, 0, oldBytes, 0, oldFileBytes.length);
                         int block = 0;
                         ByteBufferOutputStream patchBlockOut = new ByteBufferOutputStream();
                         for (int pos = 0; pos < patchBytes.length;) {
@@ -133,13 +134,13 @@ public class Patcher {
                             int length = Math.min(blockSize, size - pos);
                             int patchLength = BytesUtil.readInt(new ByteArrayInputStream(patchBytes, pos, 4));
                             LOG.trace("Patch Length {}", patchLength);
-                            byte[] oldBlockData = Arrays.copyOfRange(oldBytes, block * blockSize, (block + 1) * blockSize);
+                            byte[] oldBlockData = new byte[length];
+                            sourceStream.read(oldBlockData);
                             block++;
                             byte[] patchBlockData = Arrays.copyOfRange(patchBytes, pos + 4, pos + 4 + patchLength);
-                            Patch.patch(oldBlockData, patchBlockData, patchBlockOut);
+                            Patch.patch(oldBlockData, patchBlockData, patchedOut);
                             pos += 4 + patchLength;
                         }
-                        patchedOut.write(patchBlockOut.getBuf(), 0, newFileLength);
 
                         if (Files.size(toPatch) == 0) {
                             LOG.warn("File {} is now 0 bytes long: {}", toPatch, fileName);
