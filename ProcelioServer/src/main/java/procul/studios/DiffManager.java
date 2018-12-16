@@ -12,6 +12,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class DiffManager {
     private static Map<OperatingSystem, DiffManager> diffManagers;
@@ -27,7 +29,7 @@ public class DiffManager {
     private final Path buildDir;
     private final Path packDir;
 
-//    private final List<Tuple<Version, File>> buildVersions;
+    private final ExecutorService exec;
     private final List<DeltaPack> deltaPacks;
     private List<BuildPack> buildPacks;
     private BuildPack newestBuild;
@@ -39,19 +41,25 @@ public class DiffManager {
         return diffManagers;
     }
 
-    public static Map<OperatingSystem, DiffManager> createDiffManagers(Path baseDir) throws IOException {
+    public static Map<OperatingSystem, DiffManager> createDiffManagers(Path baseDir, ExecutorService exec) throws IOException {
         if (!Files.isDirectory(baseDir)) {
             throw new IOException("Base Directory " + baseDir + " does not exist");
         }
         diffManagers = new HashMap<>();
         for (Path osDir : Files.newDirectoryStream(baseDir)) {
-            DiffManager manager = new DiffManager(osDir);
+            if(!Files.isDirectory(osDir))
+                continue;
+            DiffManager manager = new DiffManager(osDir, exec);
             diffManagers.put(manager.os, manager);
         }
         return diffManagers;
     }
 
-    private DiffManager(Path osDir) throws IOException {
+    public static Map<OperatingSystem, DiffManager> createDiffManagers(Path baseDir) throws IOException {
+        return createDiffManagers(baseDir, Executors.newSingleThreadExecutor());
+    }
+
+    private DiffManager(Path osDir, ExecutorService exec) throws IOException {
         hasDiffed = false;
 
         os = OperatingSystem.parse(osDir.getFileName().toString());
@@ -72,6 +80,7 @@ public class DiffManager {
 
         deltaPacks = new ArrayList<>();
         buildPacks = new ArrayList<>();
+        this.exec = exec;
     }
 
     public List<DeltaPack> getDeltaPacks(){
@@ -106,7 +115,7 @@ public class DiffManager {
             if(build.compareTo(newestBuild) > 0)
                 newestBuild = build;
             if(last != null) {
-                deltas.add(new Delta(deltaDir, last, build));
+                deltas.add(new Delta(deltaDir, last, build, exec));
             }
             last = build;
         }

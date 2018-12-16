@@ -116,31 +116,34 @@ public class Patcher {
                     Files.move(toPatch, sourcePath);
                     try(InputStream sourceStream = Files.newInputStream(sourcePath);
                         OutputStream patchedOut = Files.newOutputStream(toPatch)) {
-                        ByteBufferOutputStream patchStream = new ByteBufferOutputStream();
-                        readEntry(zipStream, buffer, patchStream);
-//                        Patch.patch(oldBytes, patchStream.toByteArray(), patchedOut);
+                        ByteBufferOutputStream readPatchStream = new ByteBufferOutputStream();
+                        readEntry(zipStream, buffer, readPatchStream);
 
-
-                        int newFileLength = BytesUtil.readInt(new ByteArrayInputStream(patchStream.getBuf()));
-                        byte[] patchBytes = new byte[patchStream.getCount()-4];
-                        System.arraycopy(patchStream.getBuf(), 4, patchBytes, 0, patchBytes.length);
-                        int size = Math.toIntExact(Math.max(Files.size(sourcePath), newFileLength));
-                        LOG.trace("Block size: {}, Old File: {}, New File: {}", size, Files.size(sourcePath), newFileLength);
-                        final int blockSize = 1024*1024;
-                        int block = 0;
+                        ByteArrayInputStream patchStream = new ByteArrayInputStream(readPatchStream.getBuf(), 0 , readPatchStream.getCount());
+                        int newFileLength = BytesUtil.readInt(patchStream);
+                        int totalBlockSize = Math.toIntExact(Math.max(Files.size(sourcePath), newFileLength));
+                        LOG.trace("Patching {}", newFileName);
+                        LOG.trace("Block size: {}, Old File: {}, New File: {}", totalBlockSize, Files.size(sourcePath), newFileLength);
+                        final int blockSize = 1024;
                         ByteBufferOutputStream patchBlockOut = new ByteBufferOutputStream();
-                        for (int pos = 0; pos < patchBytes.length;) {
-                            LOG.trace("Block {}", block);
-                            int length = Math.min(blockSize, size - pos);
-                            int patchLength = BytesUtil.readInt(new ByteArrayInputStream(patchBytes, pos, 4));
-                            LOG.trace("Patch Length {}", patchLength);
-                            byte[] oldBlockData = new byte[length];
+                        for (int writtenBytes = 0;writtenBytes < newFileLength;) {
+                            int blockLength = Math.min(blockSize, totalBlockSize - writtenBytes);
+                            if(blockLength < 1)
+                                break;
+                            int patchBlockLength = BytesUtil.readInt(patchStream);
+                            LOG.trace("Patch Length {}", patchBlockLength);
+                            byte[] oldBlockData = new byte[blockLength];
                             sourceStream.read(oldBlockData);
-                            block++;
-                            byte[] patchBlockData = Arrays.copyOfRange(patchBytes, pos + 4, pos + 4 + patchLength);
-                            Patch.patch(oldBlockData, patchBlockData, patchedOut);
-                            pos += 4 + patchLength;
+                            byte[] patchBlockData = new byte[patchBlockLength];
+                            patchStream.read(patchBlockData);
+                            Patch.patch(oldBlockData, patchBlockData, patchBlockOut);
+                            int bytesToWrite = Math.min(patchBlockOut.getCount(), newFileLength - writtenBytes);
+                            patchedOut.write(patchBlockOut.getBuf(), 0, bytesToWrite);
+                            writtenBytes += bytesToWrite;
+                            LOG.trace("Total Written Bytes: {}", writtenBytes);
+                            patchBlockOut.reset();
                         }
+
 
                         if (Files.size(toPatch) == 0) {
                             LOG.warn("File {} is now 0 bytes long: {}", toPatch, fileName);

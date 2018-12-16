@@ -12,9 +12,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Collection;
-import java.util.List;
 import java.util.Random;
-import java.util.stream.Collectors;
+import java.util.concurrent.Executors;
 
 /**
  *
@@ -25,7 +24,6 @@ public class ProcelioServer {
     public static final Path configFile = Paths.get("./config.json").normalize();
     public static final Random rn = new Random();
     public static Server[] serverStatus;
-    private static boolean multiThreaded = true;
 
     public static void main(String[] args) throws IOException {
         if (args.length > 0 && args[0].equals("init")) {
@@ -38,33 +36,14 @@ public class ProcelioServer {
             return;
         }
         Configuration config = Configuration.loadConfiguration(configFile, Configuration.class);
-        if(args.length > 0 && args[0].equals("noThread")) {
-            multiThreaded = false;
-        }
         if (config.launcherConfigPath != null)
             config.launcherConfig = Configuration.loadConfiguration(Paths.get(config.launcherConfigPath), LauncherConfiguration.class);
         if (config.partConfigPath != null)
             config.partConfig = Configuration.loadConfiguration(Paths.get(config.partConfigPath), PartConfiguration.class);
         Path buildFolder = Paths.get(config.buildFolderPath);
-        Collection<DiffManager> diffMangers = DiffManager.createDiffManagers(buildFolder).values();
-        List<Thread> tList = diffMangers.stream().map(v -> new Thread(() -> {
-            try {
-                v.findPackages();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        })).collect(Collectors.toList());
-        if(multiThreaded) {
-            tList.forEach(Thread::start);
-            tList.forEach(t -> {
-                try {
-                    t.join();
-                } catch (InterruptedException e) {
-                    LOG.warn("Interrupted", e);
-                }
-            });
-        } else {
-            tList.forEach(Thread::run);
+        Collection<DiffManager> diffMangers = DiffManager.createDiffManagers(buildFolder, Executors.newFixedThreadPool(4)).values();
+        for (DiffManager diffManger : diffMangers) {
+            diffManger.findPackages();
         }
         Database database = new Database(config);
         AtomicDatabase atomicDatabase = new AtomicDatabase(database.getContext());

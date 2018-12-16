@@ -44,12 +44,12 @@ follows:
 
     bytes   description
     1..4    int final_output_file_length
-    Block N
-    1..4    int block_length (z-4)
-    5..z    byte[] block_data
+    Block (length of z)
+        1..4    int block_data_length
+        5..z    byte[] block_data
     End Block
         
-block N block_data is the patch data that coresponds to block N of the original file.
+block N block_data is the patch data that corresponds to block N of the original file.
 
 ####File Entries
 File entries exist when there is a new file to add to the path or the a patch for the existing file is larger the new
