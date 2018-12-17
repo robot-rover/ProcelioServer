@@ -1,6 +1,9 @@
 package procul.studios.util;
 
-import java.io.*;
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -83,8 +86,8 @@ public final class FileUtils {
         }
     }
 
-    public static String getSize(File file) {
-        long length = file.length();
+    public static String getSize(Path file) throws IOException {
+        long length = Files.size(file);
         if(length < 1024)
             return length + " b";
         length /= 1024;

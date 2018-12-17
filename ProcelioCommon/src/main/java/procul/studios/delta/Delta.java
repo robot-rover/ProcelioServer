@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.util.ByteBufferOutputStream;
 import procul.studios.util.BytesUtil;
+import procul.studios.util.FileUtils;
 import procul.studios.util.Hashing;
 
 import java.io.*;
@@ -14,10 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.DigestInputStream;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -82,7 +80,7 @@ public class Delta {
 
     private void diffFile(Path path) {
         try {
-            LOG.debug("Diffing {}", path);
+            LOG.debug("Diffing {} | {}", path, FileUtils.getSize(target.getBaseDirectory().resolve(path)));
             Path targetFile = target.getBaseDirectory().resolve(path);
             Path sourceFile = source.getBaseDirectory().resolve(path);
             Path patchFile = baseDirectory.resolve(path.toString() + ".patch");
@@ -90,10 +88,11 @@ public class Delta {
             try (InputStream sourceStream = new BufferedInputStream(Files.newInputStream(sourceFile));
                  DigestInputStream targetStream = new DigestInputStream(new BufferedInputStream(Files.newInputStream(targetFile)), Hashing.getMessageDigest());
                  OutputStream patchStream = new BufferedOutputStream(Files.newOutputStream(patchFile))) {
+                final int blockSize = 1024*1024*5;
+                BytesUtil.writeInt(blockSize, patchStream);
                 BytesUtil.writeInt((int) Files.size(targetFile), patchStream);
                 int size = Math.toIntExact(Math.max(Files.size(targetFile), Files.size(sourceFile)));
-                LOG.trace("Block size: {}, Old File: {}, New File: {}", size, Files.size(sourceFile), Files.size(targetFile));
-                final int blockSize = 1024;
+                LOG.trace("Block size: {}, Old File: {}, New File: {}, Total Blocks: {}", size, Files.size(sourceFile), Files.size(targetFile), size/blockSize + 1);
                 for (int pos = 0; pos < size; pos += blockSize) {
                     int blockLength = Math.min(blockSize, size - pos);
                     LOG.trace("Block {}", pos / blockSize);
@@ -103,10 +102,18 @@ public class Delta {
                     byte[] targetBlock = new byte[blockLength];
                     targetStream.read(targetBlock);
                     try {
+                        if(Arrays.equals(sourceBlock, targetBlock)) {
+                            LOG.trace("Block source and target is equal");
+                            BytesUtil.writeInt(-1, patchStream);
+                            continue;
+                        }
                         Diff.diff(sourceBlock, targetBlock, blockPatchStream);
-                        LOG.trace("Patch ln {}", blockPatchStream.getCount());
+                        LOG.trace("Block Length: {}, Patch Length: {}", blockLength, blockPatchStream.getCount());
                         BytesUtil.writeInt(blockPatchStream.getCount(), patchStream);
                         patchStream.write(blockPatchStream.getBuf(), 0, blockPatchStream.getCount());
+                        if(blockPatchStream.getCount() > blockLength) {
+                            LOG.trace("Patch is longer than data");
+                        }
                     } catch (InvalidHeaderException | CompressorException e) {
                         throw new IOException(e);
                     }
@@ -153,7 +160,14 @@ public class Delta {
             deleteOldFile(path);
         for (Path path : sourceAndTarget)
             todo.add(Executors.callable(() -> diffFile(path)));
-        try {
+        if(executor == null) {
+            try {
+                for(Callable<Object> call : todo)
+                    call.call();
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
+        } else try {
             executor.invokeAll(todo);
         } catch (InterruptedException e) {
             throw new IOException(e);

@@ -120,23 +120,28 @@ public class Patcher {
                         readEntry(zipStream, buffer, readPatchStream);
 
                         ByteArrayInputStream patchStream = new ByteArrayInputStream(readPatchStream.getBuf(), 0 , readPatchStream.getCount());
+                        int blockSize = BytesUtil.readInt(patchStream);
                         int newFileLength = BytesUtil.readInt(patchStream);
                         int totalBlockSize = Math.toIntExact(Math.max(Files.size(sourcePath), newFileLength));
                         LOG.trace("Patching {}", newFileName);
                         LOG.trace("Block size: {}, Old File: {}, New File: {}", totalBlockSize, Files.size(sourcePath), newFileLength);
-                        final int blockSize = 1024;
                         ByteBufferOutputStream patchBlockOut = new ByteBufferOutputStream();
                         for (int writtenBytes = 0;writtenBytes < newFileLength;) {
                             int blockLength = Math.min(blockSize, totalBlockSize - writtenBytes);
                             if(blockLength < 1)
                                 break;
                             int patchBlockLength = BytesUtil.readInt(patchStream);
-                            LOG.trace("Patch Length {}", patchBlockLength);
+                            LOG.trace("Block Length: {}, Patch Length: {}", blockLength, patchBlockLength);
                             byte[] oldBlockData = new byte[blockLength];
                             sourceStream.read(oldBlockData);
-                            byte[] patchBlockData = new byte[patchBlockLength];
-                            patchStream.read(patchBlockData);
-                            Patch.patch(oldBlockData, patchBlockData, patchBlockOut);
+                            if(patchBlockLength == -1) {
+                                patchBlockOut.write(oldBlockData);
+                                LOG.trace("Writing block from source");
+                            } else {
+                                byte[] patchBlockData = new byte[patchBlockLength];
+                                patchStream.read(patchBlockData);
+                                Patch.patch(oldBlockData, patchBlockData, patchBlockOut);
+                            }
                             int bytesToWrite = Math.min(patchBlockOut.getCount(), newFileLength - writtenBytes);
                             patchedOut.write(patchBlockOut.getBuf(), 0, bytesToWrite);
                             writtenBytes += bytesToWrite;

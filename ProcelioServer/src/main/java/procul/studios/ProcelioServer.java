@@ -13,7 +13,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.Random;
-import java.util.concurrent.Executors;
 
 /**
  *
@@ -41,7 +40,7 @@ public class ProcelioServer {
         if (config.partConfigPath != null)
             config.partConfig = Configuration.loadConfiguration(Paths.get(config.partConfigPath), PartConfiguration.class);
         Path buildFolder = Paths.get(config.buildFolderPath);
-        Collection<DiffManager> diffMangers = DiffManager.createDiffManagers(buildFolder, Executors.newFixedThreadPool(4)).values();
+        Collection<DiffManager> diffMangers = DiffManager.createDiffManagers(buildFolder).values();
         for (DiffManager diffManger : diffMangers) {
             diffManger.findPackages();
         }

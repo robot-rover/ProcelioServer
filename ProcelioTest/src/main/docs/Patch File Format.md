@@ -43,7 +43,7 @@ patch data that should be fed into bsdiff Patch along with the original file. Th
 follows:
 
     bytes   description
-    1..4    int final_output_file_length
+    1..4    int block_length
     Block (length of z)
         1..4    int block_data_length
         5..z    byte[] block_data

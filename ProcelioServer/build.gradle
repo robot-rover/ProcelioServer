@@ -69,7 +69,7 @@ task execute(type:JavaExec) {
 task executeMem(type:JavaExec) {
     main = mainClassName
     classpath = sourceSets.main.runtimeClasspath
-    jvmArgs = ['--add-modules', 'java.xml.bind', '-Xms2g', '-Xmx5g', '-Xss4m']
+    jvmArgs = ['--add-modules', 'java.xml.bind', '-Xms2g', '-Xmx8g', '-Xss50M']
 }
 
 shadowJar {

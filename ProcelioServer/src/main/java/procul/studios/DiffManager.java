@@ -13,7 +13,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class DiffManager {
     private static Map<OperatingSystem, DiffManager> diffManagers;
@@ -56,7 +55,7 @@ public class DiffManager {
     }
 
     public static Map<OperatingSystem, DiffManager> createDiffManagers(Path baseDir) throws IOException {
-        return createDiffManagers(baseDir, Executors.newSingleThreadExecutor());
+        return createDiffManagers(baseDir, null);
     }
 
     private DiffManager(Path osDir, ExecutorService exec) throws IOException {

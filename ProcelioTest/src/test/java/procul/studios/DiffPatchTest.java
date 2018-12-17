@@ -66,7 +66,7 @@ public class DiffPatchTest {
             current = patcher.loadManifest();
         }
 
-        //assertDirSame(new File(base, "linux/build/build-1.2.1"), workingDir.toFile());
+        assertDirSame(new File(base, "linux/build/build-1.2.1"), workingDir.toFile());
     }
 
     @Test

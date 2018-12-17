@@ -19,9 +19,10 @@ public class FileTreeZip {
     Path source;
 
 
-    public FileTreeZip(Path source){
+    public FileTreeZip(Path source) throws IOException {
         fileList = new ArrayList<>();
         this.source = source;
+        generateFileList(source);
     }
 
     /**
@@ -29,7 +30,10 @@ public class FileTreeZip {
      * @param zipFile output ZIP file location
      */
     public void zipTo(Path zipFile) throws IOException {
-        generateFileList(source);
+        if(Files.exists(zipFile)) {
+            LOG.debug("Skipping Zip Archive: {}, already exists.");
+            return;
+        }
         Path manifest = Paths.get("manifest.json");
         try (ZipOutputStream out = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(zipFile)))) {
             LOG.debug("Creating Zip Archive: {}", zipFile);
@@ -45,7 +49,6 @@ public class FileTreeZip {
     }
 
     private void addFileToArchive(Path path, ZipOutputStream out) throws IOException {
-        LOG.debug("Adding File: {}", path);
         ZipEntry entry = new ZipEntry(path.toString());
         out.putNextEntry(entry);
         Files.copy(source.resolve(path), out);
