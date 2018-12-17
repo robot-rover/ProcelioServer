@@ -23,6 +23,14 @@ public final class BytesUtil {
         return result;
     }
 
+    public static int readInt(byte[] bytes) {
+        int result = bytes[0] & 0xFF;
+        result |= ((bytes[1] & 0xFF) << 8);
+        result |= ((bytes[2] & 0xFF) << 16);
+        result |= ((bytes[3] & 0xFF) << 24);
+        return result;
+    }
+
     public static void writeLong(long l, OutputStream os) throws IOException {
         os.write((int) (l & 0xFF));
         os.write((int) ((l >> 8) & 0xFF));

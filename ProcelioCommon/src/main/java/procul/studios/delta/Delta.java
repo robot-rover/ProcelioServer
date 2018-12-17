@@ -88,19 +88,21 @@ public class Delta {
             try (InputStream sourceStream = new BufferedInputStream(Files.newInputStream(sourceFile));
                  DigestInputStream targetStream = new DigestInputStream(new BufferedInputStream(Files.newInputStream(targetFile)), Hashing.getMessageDigest());
                  OutputStream patchStream = new BufferedOutputStream(Files.newOutputStream(patchFile))) {
-                final int blockSize = 1024*1024*5;
+                final int blockSize = 1024*1024*20;
                 BytesUtil.writeInt(blockSize, patchStream);
-                BytesUtil.writeInt((int) Files.size(targetFile), patchStream);
                 int size = Math.toIntExact(Math.max(Files.size(targetFile), Files.size(sourceFile)));
                 LOG.trace("Block size: {}, Old File: {}, New File: {}, Total Blocks: {}", size, Files.size(sourceFile), Files.size(targetFile), size/blockSize + 1);
+                byte[] buffer = new byte[blockSize];
                 for (int pos = 0; pos < size; pos += blockSize) {
                     int blockLength = Math.min(blockSize, size - pos);
                     LOG.trace("Block {}", pos / blockSize);
                     ByteBufferOutputStream blockPatchStream = new ByteBufferOutputStream();
-                    byte[] sourceBlock = new byte[blockLength];
-                    sourceStream.read(sourceBlock);
-                    byte[] targetBlock = new byte[blockLength];
-                    targetStream.read(targetBlock);
+                    int sourceBytesRead = sourceStream.read(buffer);
+                    byte[] sourceBlock = Arrays.copyOfRange(buffer, 0, Math.max(sourceBytesRead, 0));
+                    int targetBytesRead = targetStream.read(buffer);
+                    if(targetBytesRead < 1)
+                        break;
+                    byte[] targetBlock = Arrays.copyOfRange(buffer, 0, Math.max(targetBytesRead, 0));
                     try {
                         if(Arrays.equals(sourceBlock, targetBlock)) {
                             LOG.trace("Block source and target is equal");

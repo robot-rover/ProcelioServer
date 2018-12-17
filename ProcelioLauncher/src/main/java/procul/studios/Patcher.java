@@ -87,7 +87,6 @@ public class Patcher {
 
     public void applyDelta(InputStream delta, BuildManifest manifest) throws IOException {
         LOG.info("Available patch bytes: " + delta.available());
-        byte[] buffer = new byte[1024];
         DeltaManifest packageManifest;
         try (ZipInputStream zipStream = new ZipInputStream(delta)) {
             ZipEntry entry = zipStream.getNextEntry();
@@ -117,36 +116,29 @@ public class Patcher {
                     try(InputStream sourceStream = Files.newInputStream(sourcePath);
                         OutputStream patchedOut = Files.newOutputStream(toPatch)) {
                         ByteBufferOutputStream readPatchStream = new ByteBufferOutputStream();
-                        readEntry(zipStream, buffer, readPatchStream);
+                        readEntry(zipStream, readPatchStream);
 
                         ByteArrayInputStream patchStream = new ByteArrayInputStream(readPatchStream.getBuf(), 0 , readPatchStream.getCount());
                         int blockSize = BytesUtil.readInt(patchStream);
-                        int newFileLength = BytesUtil.readInt(patchStream);
-                        int totalBlockSize = Math.toIntExact(Math.max(Files.size(sourcePath), newFileLength));
                         LOG.trace("Patching {}", newFileName);
-                        LOG.trace("Block size: {}, Old File: {}, New File: {}", totalBlockSize, Files.size(sourcePath), newFileLength);
-                        ByteBufferOutputStream patchBlockOut = new ByteBufferOutputStream();
-                        for (int writtenBytes = 0;writtenBytes < newFileLength;) {
-                            int blockLength = Math.min(blockSize, totalBlockSize - writtenBytes);
-                            if(blockLength < 1)
+                        byte[] buffer = new byte[blockSize];
+                        byte[] patchBlockLengthBuffer = new byte[4];
+                        while (true) {
+                            int isPatchesRemaining = patchStream.read(patchBlockLengthBuffer);
+                            if(isPatchesRemaining < 1)
                                 break;
-                            int patchBlockLength = BytesUtil.readInt(patchStream);
-                            LOG.trace("Block Length: {}, Patch Length: {}", blockLength, patchBlockLength);
-                            byte[] oldBlockData = new byte[blockLength];
-                            sourceStream.read(oldBlockData);
+                            int patchBlockLength = BytesUtil.readInt(patchBlockLengthBuffer);
+                            LOG.trace("Patch Length: {}", patchBlockLength);
+                            int sourceBytesRead = sourceStream.read(buffer);
+                            byte[] oldBlockData = Arrays.copyOfRange(buffer, 0, Math.max(sourceBytesRead, 0));
                             if(patchBlockLength == -1) {
-                                patchBlockOut.write(oldBlockData);
+                                patchedOut.write(oldBlockData);
                                 LOG.trace("Writing block from source");
                             } else {
                                 byte[] patchBlockData = new byte[patchBlockLength];
                                 patchStream.read(patchBlockData);
-                                Patch.patch(oldBlockData, patchBlockData, patchBlockOut);
+                                Patch.patch(oldBlockData, patchBlockData, patchedOut);
                             }
-                            int bytesToWrite = Math.min(patchBlockOut.getCount(), newFileLength - writtenBytes);
-                            patchedOut.write(patchBlockOut.getBuf(), 0, bytesToWrite);
-                            writtenBytes += bytesToWrite;
-                            LOG.trace("Total Written Bytes: {}", writtenBytes);
-                            patchBlockOut.reset();
                         }
 
 
@@ -162,7 +154,7 @@ public class Patcher {
                     if (entry.isDirectory())
                         continue;
                     try (OutputStream out = Files.newOutputStream(newFile)) {
-                        readEntry(zipStream, buffer, out);
+                        readEntry(zipStream, out);
                     }
                 }
             }
@@ -186,7 +178,7 @@ public class Patcher {
                 MessageDigest hasher = Hashing.getMessageDigest();
                 if (hasher == null) return;
                 try (DigestInputStream digest = new DigestInputStream(Files.newInputStream(gameDir.resolve(file)), hasher)) {
-                    while (digest.read(buffer) != -1) {}
+                    while (digest.read(readEntryBuffer) != -1) {}
                 }
                 String fileHash = Hashing.printHexBinary(hasher.digest());
                 if (!hash.equals(fileHash)) {
@@ -208,10 +200,11 @@ public class Patcher {
         return manifest;
     }
 
-    private void readEntry(ZipInputStream zip, byte[] buffer, OutputStream out) throws IOException {
+    private static byte[] readEntryBuffer = new byte[1024];
+    private void readEntry(ZipInputStream zip, OutputStream out) throws IOException {
         int len;
-        while ((len = zip.read(buffer)) > 0) {
-            out.write(buffer, 0, len);
+        while ((len = zip.read(readEntryBuffer)) > 0) {
+            out.write(readEntryBuffer, 0, len);
         }
     }
 
