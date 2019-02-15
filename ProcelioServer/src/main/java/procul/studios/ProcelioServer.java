@@ -1,16 +1,15 @@
 package procul.studios;
 
+import com.google.gson.JsonSyntaxException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.pojo.Server;
 import procul.studios.pojo.response.LauncherConfiguration;
+import spark.utils.StringUtils;
 
 import java.io.IOException;
-import java.io.Writer;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.Random;
 
@@ -23,32 +22,40 @@ public class ProcelioServer {
     public static final Path configFile = Paths.get("./config.json").normalize();
     public static final Random rn = new Random();
     public static Server[] serverStatus;
+    private static Configuration config;
 
     public static void main(String[] args) throws IOException {
-        if (args.length > 0 && args[0].equals("init")) {
-            String configText = Configuration.gson.toJson(new Configuration());
-            try (Writer out = Files.newBufferedWriter(configFile, StandardOpenOption.CREATE_NEW)) {
-                out.write(configText);
-            } catch (IOException e) {
-                LOG.warn("Unable to initialize config file", e);
-            }
-            return;
+        try {
+            config = Configuration.loadConfiguration(configFile, Configuration.class);
+        } catch (JsonSyntaxException e) {
+            throw new RuntimeException("Cannot Load Config", e);
         }
-        Configuration config = Configuration.loadConfiguration(configFile, Configuration.class);
-        if (config.launcherConfigPath != null)
-            config.launcherConfig = Configuration.loadConfiguration(Paths.get(config.launcherConfigPath), LauncherConfiguration.class);
-        if (config.partConfigPath != null)
-            config.partConfig = Configuration.loadConfiguration(Paths.get(config.partConfigPath), PartConfiguration.class);
-        Path buildFolder = Paths.get(config.buildFolderPath);
-        Collection<DiffManager> diffMangers = DiffManager.createDiffManagers(buildFolder).values();
-        for (DiffManager diffManger : diffMangers) {
-            diffManger.findPackages();
+        try {
+            if (config.launcherConfigPath != null)
+                config.launcherConfig = Configuration.loadConfiguration(Paths.get(config.launcherConfigPath), LauncherConfiguration.class);
+        } catch (JsonSyntaxException e) {
+            throw new RuntimeException("Cannot Load Launcher Config", e);
+        }
+        try {
+            if (config.partConfigPath != null)
+                config.partConfig = PartConfiguration.loadConfiguration(Paths.get(config.partConfigPath));
+        } catch (JsonSyntaxException e) {
+            throw new RuntimeException("Cannot Load Part Config", e);
         }
         Database database = new Database(config);
         AtomicDatabase atomicDatabase = new AtomicDatabase(database.getContext());
         ClientEndpoints clientWrapper = new ClientEndpoints(database.getContext(), config, atomicDatabase);
         ServerEndpoints serverWrapper = new ServerEndpoints(database.getContext(), config, atomicDatabase);
-        LauncherEndpoints launcherWrapper = new LauncherEndpoints(config);
+        LauncherEndpoints launcherWrapper = null;
+
+        if(!StringUtils.isEmpty(config.buildFolderPath)) {
+            Collection<DiffManager> diffMangers = DiffManager.createDiffManagers(Paths.get(config.buildFolderPath)).values();
+            for (DiffManager diffManger : diffMangers) {
+                diffManger.findPackages();
+            }
+            launcherWrapper = new LauncherEndpoints(config);
+        }
+
         serverStatus = new Server[config.serverLocation.length];
         if (config.serverKeepAlive)
             ServerDaemon.startDaemon(60000L, new ServerDaemon(config.serverLocation, serverStatus));

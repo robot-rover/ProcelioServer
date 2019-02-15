@@ -5,7 +5,7 @@
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>TRACE</level>
+            <level>INFO</level>
         </filter>
         <encoder>
             <charset>UTF-8</charset>
@@ -15,9 +15,14 @@
         </encoder>
     </appender>
 
-    <appender name="FileOut" class="ch.qos.logback.core.FileAppender">
-        <file>debug.log</file>
-        <append>false</append>
+    <appender name="FileOut" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>log.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>log.%d.log</fileNamePattern>
+            <maxHistory>2</maxHistory>
+            <totalSizeCap>100MB</totalSizeCap>
+        </rollingPolicy>
+
         <encoder>
             <charset>UTF-8</charset>
             <pattern>
@@ -26,7 +31,7 @@
         </encoder>
     </appender>
 
-    <root level="TRACE">
+    <root level="DEBUG">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FileOut" />
     </root>

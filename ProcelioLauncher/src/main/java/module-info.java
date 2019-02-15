@@ -9,6 +9,7 @@ module ps.ProcelioLauncher {
     requires java.desktop;
     requires jbsdiff;
     requires commons.compress;
+    requires ps.ProcelioDelta;
     uses org.slf4j.spi.SLF4JServiceProvider;
     exports procul.studios;
 }

@@ -4,12 +4,9 @@ import org.jooq.DSLContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 public class AtomicDatabase {
     private static Logger LOG = LoggerFactory.getLogger(AtomicDatabase.class);
@@ -44,14 +41,24 @@ public class AtomicDatabase {
         }
     }
 
-    public <V> Future<V> addOperation(Function<DSLContext, V> task){
-        FutureTask<V> future = new FutureTask<V>(() -> task.apply(context));
+    public <V> Future<V> addOperation(Task<V> task){
+        FutureTask<V> future = new FutureTask<>(() -> task.execute(context));
         queue.add(future);
         return future;
     }
 
-    public void addOperation(Consumer<DSLContext> task){
-        FutureTask future = new FutureTask<Void>(() -> task.accept(context), null);
+    public void addOperation(VoidTask task){
+        FutureTask future = new FutureTask<Void>(() -> {task.execute(context); return null;});
         queue.add(future);
+    }
+
+    @FunctionalInterface
+    public interface Task<V> {
+        V execute(DSLContext toUse) throws Exception;
+    }
+
+    @FunctionalInterface
+    public interface VoidTask {
+        void execute(DSLContext toUse) throws Exception;
     }
 }

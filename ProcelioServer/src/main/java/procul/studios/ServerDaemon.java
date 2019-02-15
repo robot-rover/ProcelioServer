@@ -13,7 +13,7 @@ import java.io.InputStreamReader;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import static procul.studios.util.GsonSerialize.gson;
+import static procul.studios.gson.GsonSerialize.gson;
 
 public class ServerDaemon  extends TimerTask {
     private static Logger LOG = LoggerFactory.getLogger(ServerDaemon.class);

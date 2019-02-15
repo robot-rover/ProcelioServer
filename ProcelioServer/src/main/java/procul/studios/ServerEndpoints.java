@@ -13,9 +13,9 @@ import spark.Spark;
 import java.time.Instant;
 
 import static procul.studios.SparkServer.ex;
+import static procul.studios.gson.GsonSerialize.gson;
 import static procul.studios.sqlbindings.Tables.AUTHTABLE;
 import static procul.studios.sqlbindings.Tables.USERTABLE;
-import static procul.studios.util.GsonSerialize.gson;
 
 public class ServerEndpoints {
     private static Logger LOG = LoggerFactory.getLogger(ServerEndpoints.class);

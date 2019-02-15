@@ -24,7 +24,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.function.Consumer;
 
 import static procul.studios.ProcelioLauncher.backendEndpoint;
-import static procul.studios.util.GsonSerialize.gson;
+import static procul.studios.gson.GsonSerialize.gson;
 
 public class EndpointWrapper {
     private static final Logger LOG = LoggerFactory.getLogger(EndpointWrapper.class);

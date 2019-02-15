@@ -1,0 +1,48 @@
+plugins {
+    id 'java'
+    id 'application'
+    id "org.beryx.jlink" version "2.6.0"
+}
+
+group 'procul.studios'
+version 'main'
+
+ext {
+    moduleCompile = false
+    moduleName = 'ps.ProcelioTool'
+}
+
+
+mainClassName = "procul.studios.tool.ProcelioTool"
+sourceCompatibility = 8
+targetCompatibility = 8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile project(':ProcelioCommon')
+    compile 'info.picocli:picocli:3.9.3'
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}
+
+jar {
+    classifier = null
+    version = null
+    manifest {
+        attributes 'Main-Class': mainClassName
+    }
+    from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+}
+
+jlink {
+    launcher{
+        name = 'proceliotool'
+    }
+}
+
+task copyJarToBin(type: Copy, dependsOn: jar) {
+    from jar.archivePath
+    into System.properties['user.home'] + "/.local/share/proctool/"
+}

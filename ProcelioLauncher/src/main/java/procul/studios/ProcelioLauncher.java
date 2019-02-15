@@ -27,10 +27,13 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import procul.studios.delta.BuildManifest;
+import procul.studios.delta.Build;
 import procul.studios.pojo.Server;
 import procul.studios.pojo.response.LauncherConfiguration;
-import procul.studios.util.*;
+import procul.studios.util.HashMismatchException;
+import procul.studios.util.OperatingSystem;
+import procul.studios.util.Tuple;
+import procul.studios.util.Version;
 
 import java.awt.*;
 import java.io.IOException;
@@ -40,7 +43,7 @@ import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
 
-import static procul.studios.util.GsonSerialize.gson;
+import static procul.studios.gson.GsonSerialize.gson;
 
 /**
  * Main Class for the Procelio Game Launcher
@@ -384,17 +387,17 @@ public class ProcelioLauncher extends Application {
             FX.dialog("Launcher Out of Date", "You need to download a new version of the launcher!", Alert.AlertType.WARNING);
             return;
         }
-        BuildManifest manifest = null;
+        Build manifest = null;
         try {
             // if a manifest exists, load it
             if (Files.exists(gameDir) && Files.exists(gameDir.resolve("manifest.json"))) {
-                manifest = patcher.loadManifest();
+                manifest = patcher.currentBuild;
             }
 
             // if a manifest doesn't exist or isn't valid, download a fresh install of the game and then launch
-            if (manifest == null || manifest.exec == null || manifest.version == null) {
+            if (manifest == null || manifest.getManifest().exec == null || manifest.getManifest().version == null) {
                 manifest = patcher.freshBuild();
-                launchFile(gameDir.resolve(manifest.exec));
+                launchFile(gameDir.resolve(manifest.getManifest().exec));
                 return;
             }
         } catch (IOException e) {
@@ -409,7 +412,7 @@ public class ProcelioLauncher extends Application {
 
         // Didn't need a fresh build of the game, so we can attempt to patch
         try {
-            manifest = patcher.updateBuild(manifest);
+            manifest = patcher.updateBuild();
         } catch (IOException e) {
             LOG.warn("Unable to connect to server");
         } catch (HashMismatchException e) {
@@ -418,7 +421,7 @@ public class ProcelioLauncher extends Application {
         }
 
         // even if patch failed, still run the game
-        launchFile(gameDir.resolve(manifest.exec));
+        launchFile(gameDir.resolve(manifest.getManifest().exec));
     }
 
 

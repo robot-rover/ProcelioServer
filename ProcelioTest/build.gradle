@@ -5,12 +5,14 @@ group 'procul.studios'
 
 sourceCompatibility = 1.8
 
+ext.moduleCompile = false
+
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    compile project(":ProcelioCommon")
+    compile project(":ProcelioDelta")
     compile project(":ProcelioServer")
     compile project(":ProcelioLauncher")
     testCompile group: 'junit', name: 'junit', version: '4.12'

@@ -26,7 +26,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import static procul.studios.ProcelioLauncher.backendEndpoint;
-import static procul.studios.util.GsonSerialize.gson;
+import static procul.studios.gson.GsonSerialize.gson;
 
 public class Patcher {
 
@@ -43,24 +43,27 @@ public class Patcher {
         this.updateProgressCallback = updateProgressCallback;
         this.updateStatusCallback = updateStatusCallback;
         this.gameDir = gameDir;
-        currentBuild = new Build(gameDir);
+        try {
+            currentBuild = new Build(gameDir);
+        } catch (IOException e) {
+            currentBuild = null;
+        }
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(Patcher.class);
 
     /**
      * Attempt to patch the game
-     * @param manifest the build manifest of the current version
      * @throws IOException if unable to contact backend server
      * @throws HashMismatchException if a file was downloaded twice and was corrupted both times
      */
-    public BuildManifest updateBuild(BuildManifest manifest) throws IOException, HashMismatchException {
-        LauncherDownload gameStatus = wrapper.checkForUpdates(new Version(manifest.version));
+    public Build updateBuild() throws IOException, HashMismatchException {
+        LauncherDownload gameStatus = wrapper.checkForUpdates(currentBuild.getVersion());
 
         // if the versions match, the game is up to date
         if (gameStatus.upToDate) {
             LOG.info("All up to date");
-            return loadManifest();
+            return currentBuild;
         }
 
         // if no patch path is available, only option is a fresh build
@@ -75,17 +78,17 @@ public class Patcher {
             for (String patch : gameStatus.patches) {
                 updateStatusCallback.accept("Downloading Patch " + patch);
                 InputStream input = wrapper.getFile(backendEndpoint + patch, updateProgressCallback);
-                applyDelta(input, manifest);
+                applyDelta(input);
             }
         } catch (IOException | HashMismatchException e) {
             updateVisibleCallback.accept(false);
             throw e;
         }
         updateVisibleCallback.accept(false);
-        return loadManifest();
+        return currentBuild;
     }
 
-    public void applyDelta(InputStream delta, BuildManifest manifest) throws IOException {
+    public void applyDelta(InputStream delta) throws IOException {
         LOG.info("Available patch bytes: " + delta.available());
         DeltaManifest packageManifest;
         try (ZipInputStream zipStream = new ZipInputStream(delta)) {
@@ -158,6 +161,7 @@ public class Patcher {
                     }
                 }
             }
+            BuildManifest manifest = currentBuild.getManifest();
             manifest.version = packageManifest.target;
             manifest.exec = packageManifest.newExec;
             Files.write(gameDir.resolve("manifest.json"), gson.toJson(manifest).getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
@@ -185,19 +189,13 @@ public class Patcher {
                     LOG.info("Hashes for file {} do not match. Manifest - {}, File - {}", gameDir.resolve(file), hash, fileHash);
                 }
             }
+
+            currentBuild = new Build(gameDir);
         }  catch (IOException e) {
             updateVisibleCallback.accept(false);
             throw e;
         }
         updateVisibleCallback.accept(false);
-    }
-
-    public BuildManifest loadManifest() throws FileNotFoundException, IOException {
-        BuildManifest manifest = null;
-        try (InputStreamReader isr = new InputStreamReader(Files.newInputStream(gameDir.resolve("manifest.json")))) {
-            manifest = gson.fromJson(isr, BuildManifest.class);
-        }
-        return manifest;
     }
 
     private static byte[] readEntryBuffer = new byte[1024];
@@ -208,8 +206,7 @@ public class Patcher {
         }
     }
 
-    public BuildManifest freshBuild() throws IOException, HashMismatchException {
-
+    public Build freshBuild() throws IOException, HashMismatchException {
         LOG.info("Making fresh build");
         if (Files.exists(gameDir))
             Files.createDirectory(gameDir);
@@ -227,7 +224,8 @@ public class Patcher {
         }
 
         updateVisibleCallback.accept(false);
-        return loadManifest();
+        currentBuild = new Build(gameDir);
+        return currentBuild;
     }
 
     private static DecimalFormat df = new DecimalFormat("#.##");

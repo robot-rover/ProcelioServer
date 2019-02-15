@@ -19,7 +19,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static procul.studios.SparkServer.ex;
-import static procul.studios.util.GsonSerialize.gson;
+import static procul.studios.gson.GsonSerialize.gson;
 
 public class LauncherEndpoints {
     private static final Pattern packagePattern = Pattern.compile("(\\d+)\\.(\\d+)\\.(\\d+)-(\\d+)\\.(\\d+)\\.(\\d+)");
@@ -78,11 +78,13 @@ public class LauncherEndpoints {
     }
 
     public Object fullBuild(Request req, Response res){
+        if(getDiffer(req).getNewestBuild() == null)
+            return ex("No build available", 404);
         res.header("Content-Type", "application/zip");
         res.header("Content-MD5", Hashing.printHexBinary(getDiffer(req).getNewestBuild().getHash()));
         res.header("Content-Length", String.valueOf(getDiffer(req).getNewestBuild().getLength()));
-        try (OutputStream out = res.raw().getOutputStream();
-             InputStream in = Files.newInputStream(getDiffer(req).getNewestBuild().getArchive())){
+        try (InputStream in = Files.newInputStream(getDiffer(req).getNewestBuild().getArchive())){
+            OutputStream out = res.raw().getOutputStream();
             IOUtils.copyLarge(in, out);
         } catch (IOException e) {
             e.printStackTrace();

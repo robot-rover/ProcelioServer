@@ -1,31 +1,26 @@
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
-import org.apache.tools.ant.taskdefs.condition.Os
+plugins {
+    id 'java'
+    id 'org.openjfx.javafxplugin' version '0.0.7'
+    id 'application'
+}
 
 group 'procul.studios'
 version '0.0.3'
 
-apply plugin: 'java'
 
-apply plugin: 'com.github.johnrengelman.shadow'
-
-ext {
-    description = "Play and Update Procelio"
-    icon = "resources/main/icon" + (Os.isFamily(Os.FAMILY_WINDOWS) ? ".ico" : ".png")
-    vendor = "Procul Studios"
-    category = 'Game'
-    moduleName = 'ps.ProcelioLauncher'
-    mainClassName = 'procul.studios.ProcelioLauncher'
-    newModuleInfo = 'module-info.java'
-    osMap = [linux: '/usr/lib/jvm/java-10-oracle', windows: '/usr/lib/jvm/java-10-windows']
-    jdkHome = System.properties.'java.home'
+javafx {
+    modules = [ 'javafx.controls' , 'javafx.graphics']
 }
 
 compileJava {
-    sourceCompatibility = 1.9
-    targetCompatibility = 1.9
+    sourceCompatibility = 11
+    targetCompatibility = 11
 }
 
+ext {
+    mainClassName = "ps.ProcelioLauncher/procul.studios.ProcelioLauncher"
+    moduleCompile = false
+}
 
 repositories {
     mavenCentral()
@@ -36,6 +31,8 @@ dependencies {
     compile group: 'io.sigpipe', name:'jbsdiff', version: '1.0'
 
     //POJOs
+    compile project(":ProcelioDelta")
+
     compile project(":ProcelioCommon")
 
     //Making HTTP Requests
@@ -45,132 +42,23 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
 }
 
-buildscript {
-    repositories { jcenter() }
-    dependencies { classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1' }
-}
-
-shadowJar {
+jar {
     baseName = 'ProcelioLauncher'
     classifier = null
     version = null
     manifest {
-        attributes 'Main-Class': project.ext.mainClassName
+        attributes 'Main-Class': "procul.studios.ProcelioLauncher"
     }
 }
 
-
-
-//https://www.javaworld.com/article/2073479/searching-jar-files-with-groovy.html
-//http://mail.openjdk.java.net/pipermail/jigsaw-dev/2016-July/008559.html
-
-task compileModuleInfo(dependsOn: project.tasks.shadowJar) {
-    project.ext.sourceModuleInfo = project.projectDir.absolutePath + File.separator + project.ext.newModuleInfo
-    inputs.files sourceModuleInfo
-    project.ext.buildModuleInfo = "${temporaryDir}/module-info.java"
-    project.ext.compModuleInfo = "${temporaryDir}/module-info.class"
-    outputs.files project.ext.buildModuleInfo, project.ext.compModuleInfo
-
-    doLast {
-        Files.copy(file(project.ext.sourceModuleInfo).toPath(), file(project.ext.buildModuleInfo).toPath(), StandardCopyOption.REPLACE_EXISTING)
-        exec {
-            executable project.ext.jdkHome + "/bin/" + "javac"
-            args = ['--patch-module', project.ext.moduleName + "=" + shadowJar.archivePath, project.ext.buildModuleInfo]
-        }
-    }
-}
-
-task transformJar(type: Jar, dependsOn: tasks.compileModuleInfo) {
-    from zipTree(shadowJar.archivePath).matching {
-        exclude 'module-info.class'
-    }
-    from file(project.ext.compModuleInfo)
-    destinationDir = file(project.buildDir.path + '/jlink')
-    baseName = 'ProcelioLauncher'
-    classifier = 'jlink'
-    version = null
-    manifest = shadowJar.manifest
-}
-
-task imageJre(dependsOn: tasks.transformJar) {
-
-    project.ext.osMap.each {
-        k, v -> outputs.dir "${buildDir}/jre-image-${k}"
-    }
-    inputs.dir transformJar.outputs
-
-    doLast {
-        project.ext.osMap.each {
-            k, v -> imageOS(k, v)
-        }
-    }
-}
-
-def imageOS(String os, String jmodsDir) {
-    def outputDir = file("${buildDir}/jre-image-${os}")
-    delete outputDir
-    exec {
-        executable project.ext.jdkHome + "/bin/" + "jlink"
-        args = ['--module-path', ["${jmodsDir}/jmods", transformJar.archivePath.absolutePath].join(File.pathSeparator),
-                '--add-modules', project.ext.moduleName,
-                '--launcher', 'launch=' + project.ext.moduleName + '/' + project.ext.mainClassName,
-                '--output', outputDir,
-                '--compress=2', '--strip-debug'
+run {
+    inputs.property("moduleName", moduleName)
+    doFirst {
+        println classpath.asPath
+        jvmArgs = [
+                '--module-path', classpath.asPath,
+                '--module', mainClassName
         ]
-        logger.lifecycle commandLine.join(' ')
+        classpath = files()
     }
-    // fix non-writable files in legal/
-    /*exec {
-        executable 'chmod'
-        args = ['u+w', '-R', customJreOutput]
-    }*/
-}
-
-task packageLauncher(dependsOn: transformJar) {
-    inputs.dir transformJar.archivePath
-    def outputDir = buildDir.path + "/packages"
-    outputs.dir outputDir
-    doLast {
-        exec {
-            executable 'javapackager'
-            args = ['-deploy',
-                    '-native', (Os.isFamily(Os.FAMILY_WINDOWS) ? "exe" : "deb"),
-                    '-outdir', outputDir,
-                    '-outfile', 'dumb',
-                    '-name', project.name,
-                    '-title', project.ext.description,
-                    '-vendor', project.ext.vendor,
-                    '-Bcategory=' + project.ext.category,
-                    '-Bicon=' + project.buildDir.path + File.separator + project.ext.icon,
-                    '-BjlinkOptions=compress=2',
-                    '-BappVersion=' + project.version,
-                    '-Bverbose=true',
-                    '--module-path', [project.jdkHome + "/jmods", transformJar.archivePath.parent].join(File.pathSeparator),
-                    '-m', 'ps.ProcelioLauncher/procul.studios.ProcelioLauncher'
-            ]
-        }
-    }
-}
-
-task execute(type:JavaExec) {
-    main = mainClassName
-    classpath = sourceSets.main.runtimeClasspath
-}
-
-task dependentsList() {
-    doLast {
-        configurations.compile.getResolvedConfiguration().getFirstLevelModuleDependencies().each {
-            recursivePrint(it, 0)
-        }
-    }
-}
-
-def recursivePrint(ResolvedDependency dep, int level) {
-    level.times { print '\t'}
-    dep.getModuleArtifacts().each {
-        print it
-        print '\t'
-    }
-    println()
-    dep.children.each { recursivePrint(it, level + 1)}
 }

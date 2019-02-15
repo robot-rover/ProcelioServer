@@ -1,14 +1,10 @@
 package procul.studios.pojo.response;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.List;
 
 
 public class LauncherConfiguration {
-    private static Logger LOG = LoggerFactory.getLogger(LauncherConfiguration.class);
     public String websiteUrl;
     public List<Update> updates;
     public Integer[] launcherVersion;

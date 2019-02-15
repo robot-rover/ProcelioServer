@@ -6,7 +6,7 @@ apply plugin: 'java'
 subprojects {
     afterEvaluate {
         compileJava {
-            if (sourceCompatibility == '1.9') {
+            if (project.ext.moduleCompile) {
                 inputs.property("moduleName", moduleName)
                 doFirst {
                     options.compilerArgs = [
@@ -15,9 +15,7 @@ subprojects {
                     classpath = files()
                 }
             }
+
         }
     }
-}
-
-dependencies {
 }

@@ -5,8 +5,12 @@ ProcelioServer/src/test/resources
 *.jks
 config.json
 debug.log
+log.log
+deploy.sh
 gameBuilds
 ProcelioGame
+.attach_pid*
+*.bin
 
 # Ignore Builds
 *.jar
@@ -77,4 +81,3 @@ com_crashlytics_export_strings.xml
 crashlytics.properties
 crashlytics-build.properties
 fabric.properties
-

@@ -39,7 +39,7 @@
             <packageName>procul.studios.sqlbindings</packageName>
 
             <!-- The destination directory of your generated classes. Using Maven directory layout here -->
-            <directory>../src/main/java</directory>
+            <directory>../ProcelioServer/src/main/java</directory>
         </target>
     </generator>
 </configuration>

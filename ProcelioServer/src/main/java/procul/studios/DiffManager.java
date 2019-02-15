@@ -146,9 +146,9 @@ public class DiffManager {
                 deltaPacks.add((DeltaPack) pack);
             }
         }
-        if(newestBuild == null) {
+        /*if(newestBuild == null) {
             throw new IOException("No build packs present in package folder");
-        }
+        }*/
     }
 
     public List<DeltaPack> assemblePatchList(Version currentVersion) {

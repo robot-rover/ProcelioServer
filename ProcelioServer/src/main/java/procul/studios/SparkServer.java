@@ -1,5 +1,6 @@
 package procul.studios;
 
+import com.google.gson.JsonParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.pojo.response.Message;
@@ -9,7 +10,7 @@ import spark.Spark;
 
 import java.util.stream.Collectors;
 
-import static procul.studios.util.GsonSerialize.gson;
+import static procul.studios.gson.GsonSerialize.gson;
 import static spark.Spark.*;
 
 /**
@@ -32,7 +33,7 @@ public class SparkServer {
     }
 
     public static String ex(String message, int code){
-        halt(code, gson.toJson(new Message(message, 404)));
+        halt(code, gson.toJson(new Message(message, code)));
         return null;
     }
 
@@ -47,35 +48,54 @@ public class SparkServer {
         before((req, res) -> LOG.debug("RequestID `{}`\n{}\n{} ", req.attribute("requestID"), req.headers().stream().map(v -> v + ": " + req.headers(v)).collect(Collectors.joining("\n")), req.body()));
         //Client Endpoints
         get("/status", this::status);
-        get("/servers", client::getServer);
-        get("/parts", client::getInventory);
-        post("/users", client::createUser);
-        post("/login", client::login);
-        get("/users/:user", client::getUser);
-        patch("/users/me", client::editUser);
-        get("/users/:user/avatar", client::getAvatar);
-        post("/avatars", client::setAvatar);
-        post("/purchase", client::blockTransaction);
-        post("/users/:user/robots", client::createRobot);
-        delete("/users/:user/robots/:robot", client::deleteRobot);
-        patch("/users/:user/robots/:robot", client::editRobot);
+
+        if(client != null) {
+            post("/users", client::createUser);
+            post("/login", client::login);
+            get("/users/:user", client::getUser);
+            patch("/users/me", client::editUser);
+            get("/users/:user/avatar", client::getAvatar);
+            post("/users/me/avatar", client::setAvatar);
+            post("/purchase", client::blockTransaction);
+            post("/users/me/robots", client::createRobot);
+            get("/users/me/robots", client::getRobots);
+            get("/users/:user/robots/:robot", client::getRobot);
+            get("/users/me/inventory", client::getInventory);
+            delete("/users/:user/robots/:robot", client::deleteRobot);
+            patch("/users/me/robots/:robot", client::editRobot);
+        }
 
         //Server Endpoints
-        get("/validate", server::validateToken);
-        post("/reward", server::addCurrency);
+        if(server != null) {
+            get("/validate", server::validateToken);
+            post("/reward", server::addCurrency);
+        }
 
         //Launcher Endpoints
-        get("/launcher/config", launcher::getConfig);
-        //get("/launcher/logo", launcher::getLogo);
-        get("/launcher", launcher::getPatchList);
-        get("/launcher/build", launcher::fullBuild);
-        get("/launcher/:patch", launcher::getPatchList);
-        get("/launcher/patch/:patch", launcher::getPatch);
-        get("/launcher/buildFile/:build/*", launcher::getBuildFile);
+        if(launcher != null) {
+            get("/launcher/config", launcher::getConfig);
+            //get("/launcher/logo", launcher::getLogo);
+            get("/launcher", launcher::getPatchList);
+            get("/launcher/build", launcher::fullBuild);
+            get("/launcher/:patch", launcher::getPatchList);
+            get("/launcher/patch/:patch", launcher::getPatch);
+            get("/launcher/buildFile/:build/*", launcher::getBuildFile);
+        }
 
 
         notFound((req, res) -> gson.toJson(new Message("Route not found", 404)));
-        exception(Exception.class, (Exception e, Request req, Response res) -> LOG.error("Exception in Spark Thread", e));
+
+        exception(JsonParseException.class, (exception, request, response) -> {
+            response.body(gson.toJson(new Message("Your request was not valid JSON", 400)));
+            response.status(400);
+            LOG.debug("Invalid JSON ->\n" + request.body(), exception);
+        });
+
+        exception(Exception.class, (Exception e, Request req, Response res) -> {
+            LOG.error("Exception in Spark Thread", e);
+            res.body(gson.toJson(new Message("The server encountered an error", 500)));
+            res.status(500);
+        });
         init();
         isIgnited = true;
     }
@@ -86,6 +106,6 @@ public class SparkServer {
     }
 
     public String status(Request req, Response res) {
-        return gson.toJson(new Message("Status 100: OK", 100));
+        return gson.toJson(new Message("Status 200: OK", 200));
     }
 }
