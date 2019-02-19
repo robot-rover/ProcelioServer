@@ -1,7 +1,10 @@
 package procul.studios.tool.command;
 
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
+import picocli.CommandLine.ParentCommand;
+import procul.studios.tool.ProcelioTool;
 import procul.studios.tool.ToolVersion;
 import procul.studios.tool.Util;
 
@@ -11,10 +14,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import static picocli.CommandLine.Option;
-
 @Command(name = "dump", versionProvider = ToolVersion.class, description = "Dumps info about a binary file")
 public class Dump implements Runnable {
+
+    @ParentCommand
+    private ProcelioTool parent;
+
     @Parameters(paramLabel = "FILE", description = "The file to parse")
     private String filename;
 
@@ -29,7 +34,7 @@ public class Dump implements Runnable {
                 throw new FileNotFoundException("Cannot find file " + dump);
             }
             byte[] allBytes = Files.readAllBytes(dump);
-            Util.printInfo(allBytes);
+            Util.printInfo(allBytes, parent.getConfig());
         } catch (IOException e) {
             e.printStackTrace();
         }

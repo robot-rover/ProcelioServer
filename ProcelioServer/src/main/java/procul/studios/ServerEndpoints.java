@@ -20,12 +20,11 @@ import static procul.studios.sqlbindings.Tables.USERTABLE;
 public class ServerEndpoints {
     private static Logger LOG = LoggerFactory.getLogger(ServerEndpoints.class);
     DSLContext context;
-    Configuration config;
+    ServerConfiguration config;
     AtomicDatabase atomicDatabase;
 
-    public ServerEndpoints(DSLContext context, Configuration config, AtomicDatabase atomicDatabase){
+    public ServerEndpoints(DSLContext context, AtomicDatabase atomicDatabase){
         this.context = context;
-        this.config = config;
         this.atomicDatabase = atomicDatabase;
     }
 

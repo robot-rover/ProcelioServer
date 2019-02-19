@@ -2,6 +2,8 @@ package procul.studios.tool;
 
 import procul.studios.pojo.Inventory;
 import procul.studios.pojo.Robot;
+import procul.studios.pojo.StatFile;
+import procul.studios.pojo.StatFileBinary;
 import procul.studios.util.BytesUtil;
 
 import java.io.IOException;
@@ -13,11 +15,13 @@ import java.util.List;
 public final class Util {
     private Util() { }
 
-    public static void printInfo(byte[] allBytes) throws IOException {
+    public static void printInfo(byte[] allBytes, StatFile config) throws IOException {
         if (BytesUtil.readInt(allBytes) == Inventory.MAGIC_NUMBER) {
             System.out.println(new Inventory(allBytes));
         } else if (BytesUtil.readInt(allBytes) == Robot.MAGIC_NUMBER) {
             System.out.println(new Robot(allBytes));
+        } else if(BytesUtil.readInt(allBytes) == StatFileBinary.MAGIC_NUMBER) {
+            System.out.println(new StatFileBinary(allBytes));
         } else {
             System.out.println("Binary File (Len: " + allBytes.length + ") type not recognized...");
         }

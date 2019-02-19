@@ -9,12 +9,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.gson.GsonSerialize;
 import procul.studios.gson.GsonTuple;
+import procul.studios.gson.StatFile;
 import procul.studios.pojo.Robot;
 import procul.studios.pojo.*;
 import procul.studios.pojo.request.Authenticate;
 import procul.studios.pojo.response.Message;
 import procul.studios.pojo.response.Token;
 import procul.studios.pojo.response.User;
+import procul.studios.util.Hashing;
 import spark.Request;
 import spark.Response;
 
@@ -27,6 +29,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.security.DigestOutputStream;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
@@ -46,15 +49,55 @@ import static procul.studios.sqlbindings.Tables.USERTABLE;
 public class ClientEndpoints {
     private static Logger LOG = LoggerFactory.getLogger(ClientEndpoints.class);
     DSLContext context;
-    Configuration config;
     AtomicDatabase atomicDatabase;
-    //String authFailed;
+    PartConfiguration partConfig;
+    StatFile statFile;
+    byte[] statFileBytes;
+    String statFileChecksum;
+    int timeout;
     final int imageDim = 128;
 
-    public ClientEndpoints(DSLContext context, Configuration config, AtomicDatabase atomicDatabase) {
+    public ClientEndpoints(DSLContext context, ServerConfiguration config, AtomicDatabase atomicDatabase) {
         this.context = context;
-        this.config = config;
         this.atomicDatabase = atomicDatabase;
+        this.timeout = config.timeout;
+        try {
+            partConfig = PartConfiguration.loadConfiguration(config.partConfigPath);
+        } catch (IOException e) {
+            throw new RuntimeException("Client Module Unable to load part config", e);
+        }
+        try {
+            statFile = StatFile.loadConfiguration(config.statFileSource);
+            ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
+            DigestOutputStream out = new DigestOutputStream(bytesOut, Hashing.getMessageDigest());
+            statFile.export().serialize(out);
+            statFileBytes = bytesOut.toByteArray();
+            statFileChecksum = Hashing.printHexBinary(out.getMessageDigest().digest());
+        } catch (IOException e) {
+            throw new RuntimeException("Client Module unable tot load statfile", e);
+        }
+    }
+
+    public String getStatFileChecksum(Request req, Response res) {
+        int id = authenticate(req, res);
+        return gson.toJson(new Message(statFileChecksum));
+    }
+
+    public Object getStatFile(Request req, Response res) {
+        HttpServletResponse raw = res.raw();
+        res.type("application/octet-stream");
+
+        try {
+            raw.getOutputStream().write(statFileBytes);
+            raw.getOutputStream().flush();
+            raw.getOutputStream().close();
+
+        } catch (IOException e) {
+            LOG.error("{}: Error writing statfile to stream", req.attribute("requestID"), e);
+            return ex("Internal Serer Error", 500);
+        }
+
+        return res.raw();
     }
 
     private int getRequestedUser(Request req, int ownId) {
@@ -83,7 +126,7 @@ public class ClientEndpoints {
         }
         long costIter = 0;
         for(Map.Entry<Short, Integer> part : purchased.iterate()){
-            Part partType = config.partConfig.getPart(part.getKey());
+            StatFile.Block partType = statFile.getPart(part.getKey());
             if(partType == null){
                 LOG.warn("{}: tried to buy nonexistant part {}", req.attribute("requestID"), part.getKey());
                 continue;
@@ -124,7 +167,7 @@ public class ClientEndpoints {
     private <V> String proccessFuture(Future<V> future, Function<V, String> processor, Request req, Response res){
         V result = null;
         try {
-            result = future.get(config.timeout, TimeUnit.SECONDS);
+            result = future.get(timeout, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException e) {
             LOG.error("{}: Error waiting for atomic server", req.attribute("requestID"), e);
             ex("Internal Server Error", 500);
@@ -274,7 +317,7 @@ public class ClientEndpoints {
             }
             robots.updateRobot(robotToEdit, newRobot);
             context.update(USERTABLE).set(USERTABLE.ROBOTS, robots.serialize()).set(USERTABLE.INVENTORY, inventory.serialize()).where(USERTABLE.ID.eq(id)).execute();
-            return new GsonTuple(new Message("The robot was deleted successfully."), Message.class);
+            return new GsonTuple(new Message("The robot was editted successfully."), Message.class);
         });
         return proccessFuture(result, json -> json.serialize(gson), req, res);
     }
@@ -371,9 +414,9 @@ public class ClientEndpoints {
             return ex("The user `" + auth.username + "` already exists", 409);
         }
         String hashed = BCrypt.hashpw(auth.password, BCrypt.gensalt());
-        context.insertInto(USERTABLE).set(USERTABLE.CURRENCY, config.partConfig.startingCurrency).set(USERTABLE.USERNAME, auth.username).set(USERTABLE.PASSWORDHASH, hashed)
-                .set(USERTABLE.XP, 0).set(USERTABLE.INVENTORY, config.partConfig.loadedInventory.serialize()).set(USERTABLE.LASTLOGIN, Instant.now().getEpochSecond())
-                .set(USERTABLE.USERTYPEFIELD, 0).set(USERTABLE.ROBOTS, config.partConfig.loadedRobots.serialize()).execute();
+        context.insertInto(USERTABLE).set(USERTABLE.CURRENCY, partConfig.startingCurrency).set(USERTABLE.USERNAME, auth.username).set(USERTABLE.PASSWORDHASH, hashed)
+                .set(USERTABLE.XP, 0).set(USERTABLE.INVENTORY, partConfig.loadedInventory.serialize()).set(USERTABLE.LASTLOGIN, Instant.now().getEpochSecond())
+                .set(USERTABLE.USERTYPEFIELD, 0).set(USERTABLE.ROBOTS, partConfig.loadedRobots.serialize()).execute();
         return gson.toJson(new Message("User created successfully"));
     }
 

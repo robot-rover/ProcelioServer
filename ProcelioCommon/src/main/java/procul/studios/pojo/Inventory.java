@@ -119,13 +119,9 @@ public class Inventory {
         return false;
     }
 
-    public String mapToString() {
-        return parts.toString();
-    }
-
     @Override
     public String toString() {
         return "Inventory v" + versionRead + " -> \n" +
-                mapToString();
+                parts.toString();
     }
 }

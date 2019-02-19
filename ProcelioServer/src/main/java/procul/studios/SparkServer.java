@@ -23,8 +23,8 @@ public class SparkServer {
     ClientEndpoints client;
     ServerEndpoints server;
     LauncherEndpoints launcher;
-    Configuration config;
-    public SparkServer(Configuration config, ClientEndpoints client, ServerEndpoints server, LauncherEndpoints launcher){
+    ServerConfiguration config;
+    public SparkServer(ServerConfiguration config, ClientEndpoints client, ServerEndpoints server, LauncherEndpoints launcher){
         isIgnited = false;
         this.client = client;
         this.server = server;
@@ -63,6 +63,8 @@ public class SparkServer {
             get("/users/me/inventory", client::getInventory);
             delete("/users/:user/robots/:robot", client::deleteRobot);
             patch("/users/me/robots/:robot", client::editRobot);
+            get("/statfile", client::getStatFile);
+            get("statfile/hash", client::getStatFileChecksum);
         }
 
         //Server Endpoints

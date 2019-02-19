@@ -4,16 +4,14 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import procul.studios.pojo.response.LauncherConfiguration;
+import procul.studios.gson.Configuration;
 
 import java.io.IOException;
-import java.io.Reader;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
 
-public class Configuration {
+public class ServerConfiguration extends Configuration {
     //the unicode bytes for the keystore password stored as base64
     //not really secure, just a bit of extra obfuscation
     //if someone has access to the server filesystem you have bigger problems
@@ -28,15 +26,17 @@ public class Configuration {
     public String buildFolderPath;
     //In Seconds
     public int timeout;
-    transient public PartConfiguration partConfig;
+    /*transient public PartConfiguration partConfig;
     transient public LauncherConfiguration launcherConfig;
+    transient public StatFileBinary statFile;*/
     public String launcherConfigPath;
+    public String statFileSource;
 
     //use own gson for pretty printing
     static Gson gson = new GsonBuilder().setPrettyPrinting().create();
-    private static Logger LOG = LoggerFactory.getLogger(Configuration.class);
+    private static Logger LOG = LoggerFactory.getLogger(ServerConfiguration.class);
 
-    public Configuration() {
+    public ServerConfiguration() {
         serverKeepAlive = false;
         keystorePassB64 = null;
         keystorePath = null;
@@ -47,6 +47,7 @@ public class Configuration {
         buildFolderPath = "";
         partConfigPath = "";
         launcherConfigPath = "";
+        statFileSource = "";
     }
 
     public String getKeystorePass(){
@@ -61,13 +62,7 @@ public class Configuration {
         return new String(Base64.getDecoder().decode(serverKeyB64), StandardCharsets.UTF_8);
     }
 
-    public static <T> T loadConfiguration(Path path, Class<T> type) throws IOException {
-        T config;
-        try (Reader reader = Files.newBufferedReader(path)){
-            config = gson.fromJson(reader, type);
-        } catch (IOException e) {
-            throw new IOException("Unable to read configuration file at " + path, e);
-        }
-        return config;
+    public static ServerConfiguration loadConfiguration(Path path) throws IOException {
+        return loadGenericConfiguration(path, ServerConfiguration.class);
     }
 }

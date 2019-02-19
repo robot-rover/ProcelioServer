@@ -18,7 +18,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import procul.studios.pojo.response.LauncherConfiguration;
+import procul.studios.gson.LauncherConfiguration;
 import procul.studios.util.Version;
 
 import java.util.List;

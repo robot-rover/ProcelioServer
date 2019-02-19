@@ -4,12 +4,9 @@ import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
 
-import javax.crypto.SecretKeyFactory;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-
-import static procul.studios.sqlbindings.Tables.*;
 
 /**
  *
@@ -21,7 +18,7 @@ public class Database {
 
     DSLContext context;
 
-    public Database(Configuration config) {
+    public Database(ServerConfiguration config) {
         try {
             Class.forName("org.sqlite.JDBC");
         } catch (ClassNotFoundException ex) {

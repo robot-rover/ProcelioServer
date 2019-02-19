@@ -1,10 +1,11 @@
-package procul.studios.pojo.response;
+package procul.studios.gson;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 
-public class LauncherConfiguration {
+public class LauncherConfiguration extends Configuration {
     public String websiteUrl;
     public List<Update> updates;
     public Integer[] launcherVersion;
@@ -21,5 +22,9 @@ public class LauncherConfiguration {
 
     public LauncherConfiguration(){
         updates = new ArrayList<>();
+    }
+
+    public static LauncherConfiguration loadConfiguration(String path) throws IOException {
+        return loadGenericConfiguration(path, LauncherConfiguration.class);
     }
 }

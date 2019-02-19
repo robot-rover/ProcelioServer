@@ -1,10 +1,8 @@
 package procul.studios;
 
-import com.google.gson.JsonSyntaxException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.pojo.Server;
-import procul.studios.pojo.response.LauncherConfiguration;
 import spark.utils.StringUtils;
 
 import java.io.IOException;
@@ -22,30 +20,18 @@ public class ProcelioServer {
     public static final Path configFile = Paths.get("./config.json").normalize();
     public static final Random rn = new Random();
     public static Server[] serverStatus;
-    private static Configuration config;
+    private static ServerConfiguration config;
 
     public static void main(String[] args) throws IOException {
         try {
-            config = Configuration.loadConfiguration(configFile, Configuration.class);
-        } catch (JsonSyntaxException e) {
+            config = ServerConfiguration.loadConfiguration(configFile);
+        } catch (IOException e) {
             throw new RuntimeException("Cannot Load Config", e);
-        }
-        try {
-            if (config.launcherConfigPath != null)
-                config.launcherConfig = Configuration.loadConfiguration(Paths.get(config.launcherConfigPath), LauncherConfiguration.class);
-        } catch (JsonSyntaxException e) {
-            throw new RuntimeException("Cannot Load Launcher Config", e);
-        }
-        try {
-            if (config.partConfigPath != null)
-                config.partConfig = PartConfiguration.loadConfiguration(Paths.get(config.partConfigPath));
-        } catch (JsonSyntaxException e) {
-            throw new RuntimeException("Cannot Load Part Config", e);
         }
         Database database = new Database(config);
         AtomicDatabase atomicDatabase = new AtomicDatabase(database.getContext());
         ClientEndpoints clientWrapper = new ClientEndpoints(database.getContext(), config, atomicDatabase);
-        ServerEndpoints serverWrapper = new ServerEndpoints(database.getContext(), config, atomicDatabase);
+        ServerEndpoints serverWrapper = new ServerEndpoints(database.getContext(), atomicDatabase);
         LauncherEndpoints launcherWrapper = null;
 
         if(!StringUtils.isEmpty(config.buildFolderPath)) {

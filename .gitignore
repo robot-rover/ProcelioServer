@@ -4,6 +4,7 @@ procelio.db
 ProcelioServer/src/test/resources
 *.jks
 config.json
+statfile.json
 debug.log
 log.log
 deploy.sh

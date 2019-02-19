@@ -61,6 +61,7 @@
 | bytes | description |
 |-------|-------------|
 | 4 | Magic Number: 0x1EF1A757 |
+| 4 | Version |
 | 4 | Number of Blocks |
 | n | Array of Blocks |
 

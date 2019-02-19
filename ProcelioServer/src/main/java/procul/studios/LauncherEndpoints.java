@@ -1,6 +1,7 @@
 package procul.studios;
 
 import procul.studios.delta.DeltaPack;
+import procul.studios.gson.LauncherConfiguration;
 import procul.studios.pojo.response.LauncherDownload;
 import procul.studios.util.Hashing;
 import procul.studios.util.OperatingSystem;
@@ -24,10 +25,14 @@ import static procul.studios.gson.GsonSerialize.gson;
 public class LauncherEndpoints {
     private static final Pattern packagePattern = Pattern.compile("(\\d+)\\.(\\d+)\\.(\\d+)-(\\d+)\\.(\\d+)\\.(\\d+)");
     private static final Pattern versionPattern = Pattern.compile("(\\d+)\\.(\\d+)\\.(\\d+)");
-    Configuration config;
+    LauncherConfiguration launcherConfig;
 
-    public LauncherEndpoints(Configuration config){
-        this.config = config;
+    public LauncherEndpoints(ServerConfiguration config){
+        try {
+            launcherConfig = LauncherConfiguration.loadConfiguration(config.launcherConfigPath);
+        } catch (IOException e) {
+            throw new RuntimeException("Launcher Module cannot load the launcher config");
+        }
     }
 
     private DiffManager getDiffer(Request req){
@@ -49,7 +54,7 @@ public class LauncherEndpoints {
     }
 
     public String getConfig(Request req, Response res){
-        return gson.toJson(config.launcherConfig);
+        return gson.toJson(launcherConfig);
     }
 
     //todo: reimplement using build package (can't guarantee that builds are present)
@@ -114,11 +119,11 @@ public class LauncherEndpoints {
     public String getPatchList(Request req, Response res) {
         String currentVersionString = req.params(":patch");
         if (currentVersionString == null)
-            return gson.toJson(new LauncherDownload("/launcher/build", false, config.launcherConfig.launcherVersion));
+            return gson.toJson(new LauncherDownload("/launcher/build", false, launcherConfig.launcherVersion));
         Version currentVersion = getVersion(currentVersionString);
         List<DeltaPack> neededPackages = getDiffer(req).assemblePatchList(currentVersion);
         boolean upToDate = currentVersion.equals(getDiffer(req).getNewestVersion());
-        LauncherDownload result = new LauncherDownload("/launcher/build", upToDate, config.launcherConfig.launcherVersion);
+        LauncherDownload result = new LauncherDownload("/launcher/build", upToDate, launcherConfig.launcherVersion);
         if(upToDate || neededPackages.size() == 0)
             return gson.toJson(result);
         result.patches = new ArrayList<>();

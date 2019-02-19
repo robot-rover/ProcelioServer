@@ -143,6 +143,16 @@ The server has a static Token that is known to be owned by the server.
 - Response: Binary (Inventory)
 - Authentication: Bearer Token
 
+##### Get Statfile Hash `/statfile/hash` - `GET`
+- Gets the MD5 hash of the current statfile
+- Response: Json (procul.studios.pojo.response.Message)
+- Authentication: Bearer Token
+
+##### Get Statfile `/statfile` - `GET`
+- Gets the binary representation of the current statfile
+- Response: Binary (Stat File)
+- Authentication: Bearer Token
+
 ### Server Endpoints
 
 ##### Validate User Token `/validate` - `GET`
