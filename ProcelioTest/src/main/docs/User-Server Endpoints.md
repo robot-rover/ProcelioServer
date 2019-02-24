@@ -122,7 +122,7 @@ The server has a static Token that is known to be owned by the server.
   - Old password provided in header named X-Username
 - Old credentials provided in headers, new credentials in the request body. Either new credentials may be left null.
 
-##### Get Robots `/users/{userId}/robots` - `GET`
+##### Get Robots `/users/me/robots` - `GET`
 - Gets a list of robots for a user
 - Errors
   - `400` -> Requested user id isn't valid

@@ -449,10 +449,9 @@ public class ClientEndpoints {
 
     public String getRobots(Request req, Response res) throws IOException {
         int id = authenticate(req, res);
-        int target = getRequestedUser(req, id);
-        Record1<byte[]> record = context.select(USERTABLE.ROBOTS).from(USERTABLE).where(USERTABLE.ID.eq(target)).fetchAny();
+        Record1<byte[]> record = context.select(USERTABLE.ROBOTS).from(USERTABLE).where(USERTABLE.ID.eq(id)).fetchAny();
         if(record.component1() == null)
-            return ex("The requested user " + target + " doesn't exist", 404);
+            return ex("The requested user " + id + " doesn't exist", 404);
         Garages garages = new Garages(record.component1());
         RobotInfo[] info = new RobotInfo[garages.getSize()];
         int i = 0;
