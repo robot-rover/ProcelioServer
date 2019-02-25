@@ -124,7 +124,7 @@ public class LauncherEndpoints {
         List<DeltaPack> neededPackages = getDiffer(req).assemblePatchList(currentVersion);
         boolean upToDate = currentVersion.equals(getDiffer(req).getNewestVersion());
         LauncherDownload result = new LauncherDownload("/launcher/build", upToDate, launcherConfig.launcherVersion);
-        if(upToDate || neededPackages.size() == 0)
+        if(upToDate || neededPackages == null)
             return gson.toJson(result);
         result.patches = new ArrayList<>();
         for(int i = 0; i < neededPackages.size(); i++){
