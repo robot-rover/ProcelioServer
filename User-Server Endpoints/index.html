@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>User Server Endpoints - ProcelioDocs</title>
+        <link href="../css/bootstrap-custom.min.css" rel="stylesheet">
+        <link href="../css/font-awesome.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+        <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+        <!--[if lt IE 9]>
+            <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+            <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+        <![endif]-->
+
+        <script src="../js/jquery-1.10.2.min.js" defer></script>
+        <script src="../js/bootstrap-3.0.3.min.js" defer></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+        <script>hljs.initHighlightingOnLoad();</script> 
+    </head>
+
+    <body>
+
+        <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+            <div class="container">
+
+                <!-- Collapsed navigation -->
+                <div class="navbar-header">
+                    <!-- Expander button -->
+                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="..">ProcelioDocs</a>
+                </div>
+
+                <!-- Expanded navigation -->
+                <div class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li >
+                                <a href="..">Welcome to MkDocs</a>
+                            </li>
+                            <li >
+                                <a href="../Binary Representations/">Binary Representations</a>
+                            </li>
+                            <li >
+                                <a href="../Patch File Format/">Patch File Format</a>
+                            </li>
+                            <li class="active">
+                                <a href="./">User Server Endpoints</a>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav navbar-right">
+                        <li>
+                            <a href="#" data-toggle="modal" data-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li >
+                                <a rel="next" href="../Patch File Format/">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="disabled">
+                                <a rel="prev" >
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+                <div class="col-md-3"><div class="bs-sidebar hidden-print affix well" role="complementary">
+    <ul class="nav bs-sidenav">
+        <li class="main active"><a href="#user-server-endpoints">User-Server Endpoints</a></li>
+            <li><a href="#errors">Errors</a></li>
+            <li><a href="#authentication">Authentication</a></li>
+            <li><a href="#client-endpoints">Client Endpoints</a></li>
+            <li><a href="#server-endpoints">Server Endpoints</a></li>
+    </ul>
+</div></div>
+                <div class="col-md-9" role="main">
+
+<h2 id="user-server-endpoints">User-Server Endpoints</h2>
+<h3 id="errors">Errors</h3>
+<p>These errors may occur at any point and should be handled appropriately.
+- <code>401</code> -&gt; You may be missing the correct Authentication.
+- <code>500</code> -&gt; There was a server side error, display a comforting error to the end user.</p>
+<h3 id="authentication">Authentication</h3>
+<h5 id="bearer-token">Bearer Token</h5>
+<p>The OAuth2 bearer token can be obtained by logging in with the Authenticate endpoint. It must be attached to every
+authenticated request under the header <code>Authorization</code>, in the form <code>Bearer &lt;token&gt;</code>.</p>
+<h5 id="server-bearer-token">Server Bearer Token</h5>
+<p>The server has a static Token that is known to be owned by the server.</p>
+<h3 id="client-endpoints">Client Endpoints</h3>
+<h5 id="server-status-status-get">Server Status <code>/status</code> - <code>GET</code></h5>
+<ul>
+<li>Gives the current status of the server.</li>
+<li>Response: Json (procul.studios.pojo.response.Message)</li>
+</ul>
+<h5 id="create-user-users-post">Create User <code>/users</code> - <code>POST</code></h5>
+<ul>
+<li>Creates a new user.</li>
+<li>Request: Json (procul.studios.pojo.request.Authenticate)</li>
+<li>Errors</li>
+<li><code>400</code> -&gt; Missing Arguments</li>
+<li><code>409</code> -&gt; Username already exists</li>
+<li>Response: Json (procul.studios.pojo.response.Message)</li>
+</ul>
+<h5 id="authenticate-login-post">Authenticate <code>/login</code> - <code>POST</code></h5>
+<ul>
+<li>Logs in and obtains an OAuth2 access token.</li>
+<li>Request: Json (procul.studios.pojo.request.Authenticate)</li>
+<li>Errors</li>
+<li><code>400</code> -&gt; Missing Arguments</li>
+<li><code>401</code> -&gt; Username or Password incorrect</li>
+<li>Response: Json (procul.studios.pojo.response.Token)</li>
+</ul>
+<h5 id="get-my-user-usersme-get">Get My User <code>/users/me</code> - <code>GET</code></h5>
+<ul>
+<li>Gets information about your user.</li>
+<li>Errors</li>
+<li><code>404</code> -&gt; UserId doesn't exist</li>
+<li>Response: Json (procul.studios.pojo.response.User)</li>
+<li>field: (avatar) only present if exists</li>
+<li>Authorization: Bearer Token</li>
+</ul>
+<h5 id="get-a-user-usersuserid-get">Get a User <code>/users/{userId}</code> - <code>GET</code></h5>
+<ul>
+<li>Gets information about a user.</li>
+<li>Errors</li>
+<li><code>404</code> -&gt; UserId doesn't exist</li>
+<li>Response: Json (procul.studios.pojo.response.User)</li>
+<li>field: (avatar) only present if exists</li>
+<li>Authorization: Bearer Token</li>
+</ul>
+<h5 id="get-a-users-avatar-usersuseridavatar-get">Get a User's Avatar <code>/users/{userId}/avatar</code> - <code>GET</code></h5>
+<ul>
+<li>Gets a user's avatar</li>
+<li>Errors</li>
+<li><code>404</code> -&gt; The user doesn't have an avatar</li>
+<li>Response: Binary (PNG) 128x128</li>
+<li>Authentication: Bearer Token</li>
+</ul>
+<h5 id="set-my-avatar-usersmeavatar-post">Set my Avatar <code>/users/me/avatar</code> - <code>POST</code></h5>
+<ul>
+<li>Sets your avatar</li>
+<li>Request: Binary (Image)</li>
+<li>Errors</li>
+<li><code>400</code> -&gt; The image is provided in an unrecognized format</li>
+<li><code>403</code> -&gt; Tried to set an avatar that isn't yours</li>
+<li>Response: Json (procul.studios.pojo.response.User)</li>
+<li>includes fields: (id, avatar)</li>
+<li>Authentication: Bearer Token</li>
+</ul>
+<h5 id="purchase-blocks-purchase-post">Purchase Blocks <code>/purchase</code> - <code>POST</code></h5>
+<ul>
+<li>Purchases some blocks</li>
+<li>Request: Binary (Inventory)</li>
+<li>Map of BlockID, Quantity to Purchase</li>
+<li>Negative Quantity sells</li>
+<li>Errors</li>
+<li><code>400</code> -&gt; Inventory Body is invalid</li>
+<li><code>409</code> -&gt; The user doesn't have enough currency or items<ul>
+<li>Can display message to user via (procul.studios.pojo.response.Message)</li>
+</ul>
+</li>
+<li>Response: Json (procul.studios.pojo.response.User)</li>
+<li>Includes fields: (currency, inventory)</li>
+<li>Authentication: Bearer Token</li>
+</ul>
+<h5 id="create-robot-usersmerobots-post">Create Robot <code>/users/me/robots</code> - <code>POST</code></h5>
+<ul>
+<li>Creates a new garage slot</li>
+<li>Request: Json (procul.studios.pojo.RobotInfo)</li>
+<li>only allows field: (name)</li>
+<li>Errors</li>
+<li><code>400</code> -&gt; Missing arguments</li>
+<li><code>403</code> -&gt; Tried to create for a user that isn't you</li>
+<li>Response: Json (procul.studios.pojo.RobotInfo)</li>
+<li>Authentication: Bearer Token</li>
+</ul>
+<h5 id="delete-robot-usersmerobotsgarageslot-del">Delete Robot <code>/users/me/robots/{garageSlot}</code> - <code>DEL</code></h5>
+<ul>
+<li>Deletes a Robot</li>
+<li>Errors</li>
+<li><code>400</code> -&gt; {garageSlot} isn't a valid integer</li>
+<li><code>403</code> -&gt; Tried to delete a robot that isn't yours</li>
+<li><code>404</code> -&gt; Robot doesn't exist</li>
+<li>Response: Json (procul.studios.pojo.response.Message)</li>
+<li>Authentication: Bearer Token</li>
+</ul>
+<h5 id="edit-robot-usersmerobotsgarageslot-patch">Edit Robot <code>/users/me/robots/{garageSlot}</code> - <code>PATCH</code></h5>
+<ul>
+<li>Edits a Robot</li>
+<li>Request: Json (procul.studios.pojo.Robot)</li>
+<li>Errors</li>
+<li><code>400</code> -&gt; {garageSlot} isn't a valid integer</li>
+<li><code>403</code> -&gt; Tried to delete a robot that isn't yours</li>
+<li><code>404</code> -&gt; Robot doesn't exist</li>
+<li>Response: Json (procul.studios.pojo.response.User)</li>
+<li>Authentication: Bearer Token</li>
+</ul>
+<h5 id="edit-credentials-usersme-patch">Edit Credentials <code>/users/me</code> - <code>PATCH</code></h5>
+<ul>
+<li>Edits your username and/or password</li>
+<li>Request: Json (procul.studios.pojo.request.Authenticate)</li>
+<li>Errors</li>
+<li><code>401</code> -&gt; Old credentials are incorrect</li>
+<li><code>409</code> -&gt; Username is already taken</li>
+<li>Response: Json (procul.studios.pojo.response.Message)</li>
+<li>Authentication: Bearer Token</li>
+<li>Old username provided in header named X-Username</li>
+<li>Old password provided in header named X-Username</li>
+<li>Old credentials provided in headers, new credentials in the request body. Either new credentials may be left null.</li>
+</ul>
+<h5 id="get-robots-usersmerobots-get">Get Robots <code>/users/me/robots</code> - <code>GET</code></h5>
+<ul>
+<li>Gets a list of robots for a user</li>
+<li>Errors</li>
+<li><code>400</code> -&gt; Requested user id isn't valid</li>
+<li><code>404</code> -&gt; Requested user doesn't exist</li>
+<li>Response: Json (procul.studios.pojo.RobotInfo) Array</li>
+<li>Authentication: Bearer Token</li>
+</ul>
+<h5 id="get-robot-usersuseridrobots-get">Get Robot <code>/users/{userId}/robots</code> - <code>GET</code></h5>
+<ul>
+<li>Gets the binary representation of a robot</li>
+<li>Errors</li>
+<li><code>400</code> -&gt; Requested garageSlot isn't valid</li>
+<li><code>404</code> -&gt; Requested garageSlot doesn't exist</li>
+<li>Response: Binary (Robot)</li>
+<li>Authentication: Bearer Token</li>
+</ul>
+<h5 id="get-inventory-usersmeinventory-get">Get Inventory <code>/users/me/inventory</code> - <code>GET</code></h5>
+<ul>
+<li>Gets the users current inventory</li>
+<li>Response: Binary (Inventory)</li>
+<li>Authentication: Bearer Token</li>
+</ul>
+<h5 id="get-statfile-hash-statfilehash-get">Get Statfile Hash <code>/statfile/hash</code> - <code>GET</code></h5>
+<ul>
+<li>Gets the MD5 hash of the current statfile</li>
+<li>Response: Json (procul.studios.pojo.response.Message)</li>
+<li>Authentication: Bearer Token</li>
+</ul>
+<h5 id="get-statfile-statfile-get">Get Statfile <code>/statfile</code> - <code>GET</code></h5>
+<ul>
+<li>Gets the binary representation of the current statfile</li>
+<li>Response: Binary (Stat File)</li>
+<li>Authentication: Bearer Token</li>
+</ul>
+<h3 id="server-endpoints">Server Endpoints</h3>
+<h5 id="validate-user-token-validate-get">Validate User Token <code>/validate</code> - <code>GET</code></h5>
+<ul>
+<li>Ensures that a token is valid and matches the user.</li>
+<li>Request: Attach the user token in a header named <code>X-User-Token</code></li>
+<li>Errors</li>
+<li><code>400</code> -&gt; Missing Token Header</li>
+<li><code>404</code> -&gt; User or Token does not exist and is not valid</li>
+<li>Response: Json (procul.studios.pojo.response.User)</li>
+<li>Only the field: (id) is filled</li>
+<li>Authentication: Server Bearer Token</li>
+</ul>
+<h5 id="rewards-reward-post">Rewards <code>/reward</code> - <code>POST</code></h5>
+<ul>
+<li>Gives users rewards at the end of a match</li>
+<li>Request: Json (procul.studios.pojo.response.User)</li>
+<li>only fill fields: (id, currency, xp)<ul>
+<li>currency and xp are the amount to add to the users current amount</li>
+</ul>
+</li>
+<li>Response: Json (procul.studios.pojo.response.Message)</li>
+<li>Authentication: Server Bearer Token</li>
+</ul></div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script>
+            var base_url = "..",
+                shortcuts = {"search": 83, "next": 78, "help": 191, "previous": 80};
+        </script>
+        <script src="../js/base.js" defer></script>
+        <script src="../search/main.js" defer></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="Search Modal" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+                <h4 class="modal-title" id="exampleModalLabel">Search</h4>
+            </div>
+            <div class="modal-body">
+                <p>
+                    From here you can search these documents. Enter
+                    your search terms below.
+                </p>
+                <form role="form">
+                    <div class="form-group">
+                        <input type="text" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="Keyboard Shortcuts Modal" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+                <h4 class="modal-title" id="exampleModalLabel">Keyboard Shortcuts</h4>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>Patch File Format - ProcelioDocs</title>
+        <link href="../css/bootstrap-custom.min.css" rel="stylesheet">
+        <link href="../css/font-awesome.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+        <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+        <!--[if lt IE 9]>
+            <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+            <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+        <![endif]-->
+
+        <script src="../js/jquery-1.10.2.min.js" defer></script>
+        <script src="../js/bootstrap-3.0.3.min.js" defer></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+        <script>hljs.initHighlightingOnLoad();</script> 
+    </head>
+
+    <body>
+
+        <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+            <div class="container">
+
+                <!-- Collapsed navigation -->
+                <div class="navbar-header">
+                    <!-- Expander button -->
+                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="..">ProcelioDocs</a>
+                </div>
+
+                <!-- Expanded navigation -->
+                <div class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li >
+                                <a href="..">Welcome to MkDocs</a>
+                            </li>
+                            <li >
+                                <a href="../Binary Representations/">Binary Representations</a>
+                            </li>
+                            <li class="active">
+                                <a href="./">Patch File Format</a>
+                            </li>
+                            <li >
+                                <a href="../User-Server Endpoints/">User Server Endpoints</a>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav navbar-right">
+                        <li>
+                            <a href="#" data-toggle="modal" data-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li >
+                                <a rel="next" href="../Binary Representations/">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li >
+                                <a rel="prev" href="../User-Server Endpoints/">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+                <div class="col-md-3"><div class="bs-sidebar hidden-print affix well" role="complementary">
+    <ul class="nav bs-sidenav">
+        <li class="main active"><a href="#patch-archive-structure">Patch Archive Structure</a></li>
+            <li><a href="#package-manifests">Package Manifests</a></li>
+            <li><a href="#package-entries">Package Entries</a></li>
+    </ul>
+</div></div>
+                <div class="col-md-9" role="main">
+
+<h2 id="patch-archive-structure">Patch Archive Structure</h2>
+<p>Patches are distributed as .zip archives. They should be named <code>diff-a.a.a-b.b.b.zip</code> where the patch transitions the
+file tree from version <code>a.a.a</code> to version <code>b.b.b</code>. They consist of a package manifest, which is always the first zip 
+entry in the archive, and then a series of entries which correspond to changed files in the file tree.</p>
+<h3 id="package-manifests">Package Manifests</h3>
+<p>The package manifest is the first entry in a package archive. It is always a file named <code>manifests.json</code>, and is a json
+file which holds various information about a patch. It is laid out in this form:</p>
+<pre><code>public List&lt;String&gt; filesAndHashes;
+public List&lt;String&gt; ignore;
+public List&lt;String&gt; delete;
+public Integer[] toVersion;
+public Integer[] fromVersion;
+public String newExec;
+</code></pre>
+<p><code>filesAndHashes</code> is a list of every file contained in the patch (except for the manifest), and the md5 hash (represented
+as a Hex string) for the file after it has been patched. After patching has finished, it is recommended to check the
+hash of the file. If it had been modified by the user before patching, there was a network inconsistency, or a
+filesystem error, this will catch it. If the hashes don't match, a client can download a fresh copy from the patch
+server. </p>
+<p><code>ignore</code> is a list of files that should not be touched by the patcher under any circumstances, usually configuration
+files that differ from install to install and should not be patched.</p>
+<p><code>delete</code> is a list of files that should be removed from the file tree when patching.</p>
+<p><code>toVersion</code> is the version the file tree will be even with once this patch is applied.</p>
+<p><code>fromVersion</code> is the version the file tree should be even with when applying this patch. If this is not accurate the
+file tree will almost definitely be corrupted.</p>
+<p><code>newExec</code> is the file that should be set as the exec in the manifest.json of the file tree after patching.
+This is only present if the file tree is executable.</p>
+<h3 id="package-entries">Package Entries</h3>
+<p>There are two types of entries present in the package archive after the manifest. File entries and patch entries. Patch
+entries are denoted by the <code>.patch</code> extension, and every other entry is a file entry. </p>
+<h4 id="patch-entries">Patch Entries</h4>
+<p>Zip entries in the package archive with the file extension <code>.patch</code> are patch entries. These entries contain the binary
+patch data that should be fed into bsdiff Patch along with the original file. The structure of these files is as
+follows:</p>
+<pre><code>bytes   description
+1..4    int block_length
+Block (length of z)
+    1..4    int block_data_length
+    5..z    byte[] block_data
+End Block
+</code></pre>
+<p>block N block_data is the patch data that corresponds to block N of the original file.</p>
+<h4 id="file-entries">File Entries</h4>
+<p>File entries exist when there is a new file to add to the path or the a patch for the existing file is larger the new
+file itself. Therefore, these should be extracted into the file tree, overwriting anything currently at that path.</p></div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script>
+            var base_url = "..",
+                shortcuts = {"search": 83, "next": 78, "help": 191, "previous": 80};
+        </script>
+        <script src="../js/base.js" defer></script>
+        <script src="../search/main.js" defer></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="Search Modal" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+                <h4 class="modal-title" id="exampleModalLabel">Search</h4>
+            </div>
+            <div class="modal-body">
+                <p>
+                    From here you can search these documents. Enter
+                    your search terms below.
+                </p>
+                <form role="form">
+                    <div class="form-group">
+                        <input type="text" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="Keyboard Shortcuts Modal" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+                <h4 class="modal-title" id="exampleModalLabel">Keyboard Shortcuts</h4>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>
