@@ -375,7 +375,7 @@ public class ProcelioLauncher extends Application {
 
 
     public static void debugNode(Node node) {
-        node.setStyle("-fx-border-color: black");
+        node.setStyle("-fx-border-color: blacsk");
     }
 
     public void warnUserNoConnection() {

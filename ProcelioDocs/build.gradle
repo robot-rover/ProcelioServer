@@ -1,0 +1,30 @@
+plugins {
+    id 'ru.vyarus.mkdocs' version '1.1.0'
+}
+
+group 'procul.studios'
+version 'main'
+
+ext {
+    moduleCompile = false
+}
+
+mkdocs {
+    // mkdocs sources
+    sourcesDir = 'src/'
+    // strict build (fail on build errors)
+    strict = true
+    // target build directory (publication root)
+    buildDir = 'build/mkdocs'
+    // automatically update site_url in mkdocs.yml before mkdocsBuild
+    updateSiteUrl = true
+
+    publish {
+        // No version Support
+        docPath = null
+        // publication branch
+        branch = 'gh-pages'
+        // directory publication repository checkout, update and push
+        repoDir = '../.gradle/gh-pages'
+    }
+}

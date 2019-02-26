@@ -5,4 +5,5 @@ include 'ProcelioDelta'
 include 'ProcelioTest'
 include 'ProcelioCommon'
 include 'ProcelioTool'
+include 'ProcelioDocs'
 

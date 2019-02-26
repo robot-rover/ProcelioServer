@@ -9,6 +9,7 @@ import procul.studios.util.ByteBufferOutputStream;
 import procul.studios.util.BytesUtil;
 import procul.studios.util.FileUtils;
 import procul.studios.util.Hashing;
+import sais.SaisDiffSettings;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -88,7 +89,7 @@ public class Delta {
             try (InputStream sourceStream = new BufferedInputStream(Files.newInputStream(sourceFile));
                  DigestInputStream targetStream = new DigestInputStream(new BufferedInputStream(Files.newInputStream(targetFile)), Hashing.getMessageDigest());
                  OutputStream patchStream = new BufferedOutputStream(Files.newOutputStream(patchFile))) {
-                final int blockSize = 1024*1024*20;
+                final int blockSize = 1024*1024*5;
                 BytesUtil.writeInt(patchStream, blockSize);
                 int size = Math.toIntExact(Math.max(Files.size(targetFile), Files.size(sourceFile)));
                 LOG.debug("Block size: {}, Old File: {}, New File: {}, Total Blocks: {}", size, Files.size(sourceFile), Files.size(targetFile), size/blockSize + 1);
@@ -109,7 +110,7 @@ public class Delta {
                             BytesUtil.writeInt(patchStream, -1);
                             continue;
                         }
-                        Diff.diff(sourceBlock, targetBlock, blockPatchStream);
+                        Diff.diff(sourceBlock, targetBlock, blockPatchStream, new SaisDiffSettings());
                         LOG.trace("Block Length: {}, Patch Length: {}", blockLength, blockPatchStream.getCount());
                         BytesUtil.writeInt(patchStream, blockPatchStream.getCount());
                         patchStream.write(blockPatchStream.getBuf(), 0, blockPatchStream.getCount());

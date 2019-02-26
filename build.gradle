@@ -6,7 +6,7 @@ apply plugin: 'java'
 subprojects {
     afterEvaluate {
         compileJava {
-            if (project.ext.moduleCompile) {
+            if (moduleCompile) {
                 inputs.property("moduleName", moduleName)
                 doFirst {
                     options.compilerArgs = [

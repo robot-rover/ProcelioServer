@@ -130,7 +130,7 @@ The server has a static Token that is known to be owned by the server.
 - Response: Json (procul.studios.pojo.RobotInfo) Array
 - Authentication: Bearer Token
 
-##### Get Robot `/users/{userId}/robots` - `GET`
+##### Get Robot `/users/me/robots` - `GET`
 - Gets the binary representation of a robot
 - Errors
   - `400` -> Requested garageSlot isn't valid

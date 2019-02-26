@@ -60,10 +60,10 @@ public class DiffPatchTest {
         Patcher patcher = new Patcher(workingDir, null, garbage, garbage, garbage);
 
         List<DeltaPack> patchList = diffManager.assemblePatchList(new Version(1,0,0));
-        BuildManifest current = patcher.loadManifest();
+        BuildManifest current = patcher.currentBuild.getManifest();
         for(DeltaPack bridge : patchList) {
-            patcher.applyDelta(Files.newInputStream(bridge.getArchive()), current);
-            current = patcher.loadManifest();
+            patcher.applyDelta(Files.newInputStream(bridge.getArchive()));
+            current = patcher.currentBuild.getManifest();
         }
 
         assertDirSame(new File(base, "linux/build/build-1.2.1"), workingDir.toFile());
@@ -84,10 +84,10 @@ public class DiffPatchTest {
         Patcher patcher = new Patcher(workingDir, null, garbage, garbage, garbage);
 
         List<DeltaPack> patchList = diffManager.assemblePatchList(new Version(1,0,0));
-        BuildManifest current = patcher.loadManifest();
+        BuildManifest current = patcher.currentBuild.getManifest();
         for(DeltaPack bridge : patchList) {
-            patcher.applyDelta(Files.newInputStream(bridge.getArchive()), current);
-            current = patcher.loadManifest();
+            patcher.applyDelta(Files.newInputStream(bridge.getArchive()));
+            current = patcher.currentBuild.getManifest();
         }
 
         assertDirSame(new File(base, "linux/build/build-1.0.1"), workingDir.toFile());
@@ -108,10 +108,10 @@ public class DiffPatchTest {
         Patcher patcher = new Patcher(workingDir.toPath(), null, garbage, garbage, garbage);
 
         List<DeltaPack> patchList = diffManager.assemblePatchList(new Version(1,0,0));
-        BuildManifest current = patcher.loadManifest();
+        BuildManifest current = patcher.currentBuild.getManifest();
         for(DeltaPack bridge : patchList) {
-            patcher.applyDelta(Files.newInputStream(bridge.getArchive()), current);
-            current = patcher.loadManifest();
+            patcher.applyDelta(Files.newInputStream(bridge.getArchive()));
+            current = patcher.currentBuild.getManifest();
         }
 
         assertDirSame(new File(base, "linux/build/build-1.0.1"), workingDir);
