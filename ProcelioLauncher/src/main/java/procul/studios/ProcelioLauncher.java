@@ -29,7 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.delta.Build;
 import procul.studios.gson.LauncherConfiguration;
-import procul.studios.pojo.Server;
 import procul.studios.util.HashMismatchException;
 import procul.studios.util.OperatingSystem;
 import procul.studios.util.Tuple;
@@ -41,6 +40,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static procul.studios.gson.GsonSerialize.gson;
@@ -417,7 +417,7 @@ public class ProcelioLauncher extends Application {
             LOG.warn("Unable to connect to server");
         } catch (HashMismatchException e) {
             FX.dialog("Hash Mismatch", "Downloaded build but the file was corrupted", Alert.AlertType.ERROR);
-            LOG.warn("Hash Missmatch", e);
+            LOG.warn("Hash Mismatch", e);
         }
 
         // even if patch failed, still run the game
@@ -463,29 +463,19 @@ public class ProcelioLauncher extends Application {
         boolean isExecutable = executable.toFile().setExecutable(true, false);
         LOG.info("Launching Procelio from {} - R:{}, X:{}", executable, isReadable, isExecutable);
 
-        Server[] servers;
-        String hostname;
         try {
             LOG.info(Files.newDirectoryStream(executable.getParent()).toString());
         } catch (IOException e) {
             e.printStackTrace();
         }
-        try {
-            servers = wrapper.getServers();
-            hostname = servers[0].hostname;
-        } catch (IOException e) {
-            hostname = "";
-            while (hostname.length() == 0) {
-                hostname = FX.prompt("Unable to aquire Server", "Unable to automatically connect to game server,\n please specify a server address").orElse(null);
-                if (hostname == null)
-                    return;
-            }
-        }
         Process game;
         try {
             LOG.info("Running {} in directory {} - Exists: {}", gameDir.relativize(executable), gameDir, Files.exists(executable));
-
-            game = new ProcessBuilder(executable.normalize().toString(), "-IP", hostname, "-PORT", "7777", "-client").directory(gameDir.toFile()).redirectErrorStream(true).start();
+            List<String> concatArgs = new ArrayList<>();
+            concatArgs.add(executable.normalize().toString());
+            concatArgs.addAll(Arrays.asList(wrapper.getLaunchArgs()));
+            LOG.info("Launching with args: {}", concatArgs);
+            game = new ProcessBuilder(concatArgs).directory(gameDir.toFile()).redirectErrorStream(true).start();
             Platform.runLater(() -> primaryStage.setIconified(true));
         } catch (IOException e) {
             LOG.error("Unable to launch Procelio", e);

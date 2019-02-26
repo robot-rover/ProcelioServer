@@ -2,6 +2,7 @@ package procul.studios;
 
 import procul.studios.delta.DeltaPack;
 import procul.studios.gson.LauncherConfiguration;
+import procul.studios.pojo.response.LaunchArguments;
 import procul.studios.pojo.response.LauncherDownload;
 import procul.studios.util.Hashing;
 import procul.studios.util.OperatingSystem;
@@ -161,5 +162,9 @@ public class LauncherEndpoints {
             ex("Malformed version in path", 400);
         }
         return version;
+    }
+
+    public String getArgs(Request req, Response res) {
+        return gson.toJson(new LaunchArguments("-IP", "67.242.154.113", "-PORT", "7777", "-client"));
     }
 }

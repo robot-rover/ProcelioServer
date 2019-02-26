@@ -23,7 +23,8 @@ public class ServerEndpoints {
     ServerConfiguration config;
     AtomicDatabase atomicDatabase;
 
-    public ServerEndpoints(DSLContext context, AtomicDatabase atomicDatabase){
+    public ServerEndpoints(DSLContext context, ServerConfiguration config, AtomicDatabase atomicDatabase){
+        this.config = config;
         this.context = context;
         this.atomicDatabase = atomicDatabase;
     }

@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.gson.LauncherConfiguration;
 import procul.studios.pojo.Server;
+import procul.studios.pojo.response.LaunchArguments;
 import procul.studios.pojo.response.LauncherDownload;
 import procul.studios.util.HashMismatchException;
 import procul.studios.util.Hashing;
@@ -32,8 +33,15 @@ public class EndpointWrapper {
     String osHeaderKey = "X-Operating-System";
     OperatingSystem osHeaderValue = OperatingSystem.get();
 
-    public void getBuildFile() {
-
+    public String[] getLaunchArgs() throws IOException {
+        HttpResponse<String> response = null;
+        try {
+            response = Unirest.get(backendEndpoint + "/launcher/args").header(osHeaderKey, osHeaderValue.getIndex()).asString();
+        } catch (UnirestException e) {
+            throw new IOException(e);
+        }
+        LOG.info("Fetching Arguments");
+        return gson.fromJson(response.getBody(), LaunchArguments.class).args;
     }
 
     public LauncherConfiguration getConfig() throws IOException {
@@ -88,20 +96,20 @@ public class EndpointWrapper {
     }
 
     public InputStream getFile(String path, Consumer<Double> progressCallback) throws IOException, HashMismatchException {
+        for(int triesLeft = 3; triesLeft > 0; triesLeft--) {
             URL url = new URL(path);
             HttpURLConnection httpConnection = (HttpURLConnection) (url.openConnection());
             httpConnection.setRequestProperty(osHeaderKey, osHeaderValue.getIndex());
             long completeFileSize = httpConnection.getContentLengthLong();
             File tempFile = File.createTempFile("procelioLauncher", null);
             LOG.info("TempFile for {}: {} - Size: {}", path, tempFile.getAbsoluteFile(), completeFileSize);
-        MessageDigest md5 = null;
-        try {
-            md5 = MessageDigest.getInstance("MD5");
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("MD5 not supported", e);
-        }
+            MessageDigest md5 = null;
+            try {
+                md5 = MessageDigest.getInstance("MD5");
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException("MD5 not supported", e);
+            }
 
-        for(int triesLeft = 3; triesLeft > 0; triesLeft--) {
             String serverHash;
             String clientHash;
             try (BufferedInputStream in = new BufferedInputStream(new DigestInputStream(httpConnection.getInputStream(), md5));

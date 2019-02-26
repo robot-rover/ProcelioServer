@@ -2,10 +2,14 @@ plugins {
     id 'java'
     id 'org.openjfx.javafxplugin' version '0.0.7'
     id 'application'
+    id 'org.beryx.jlink' version '2.6.4'
+    id "de.undercouch.download" version "3.4.3"
 }
 
+import org.gradle.internal.os.OperatingSystem;
+
 group 'procul.studios'
-version '0.0.3'
+version '0.0.4'
 
 
 javafx {
@@ -18,7 +22,24 @@ compileJava {
 }
 
 ext {
-    mainClassName = "ps.ProcelioLauncher/procul.studios.ProcelioLauncher"
+    appName = "ProcelioLauncher"
+    appLauncher = "procelioLauncher"
+    appPackaging = "procelioLauncher"
+    appModuleName = "ps.ProcelioLauncher"
+    appMainClass = "procul.studios.ProcelioLauncher"
+    mainClassName = "${ext.appModuleName}/${ext.appMainClass}"
+
+    description = "Play and Update Procelio"
+
+    icon = "build/resources/main/icon"
+    if (OperatingSystem.current().isWindows()) {
+        icon += ".ico"
+    } else {
+        icon += ".png"
+    }
+    vendor = "Procul Studios"
+    category = 'Game'
+
     moduleCompile = false
 }
 
@@ -48,6 +69,64 @@ jar {
     version = null
     manifest {
         attributes 'Main-Class': "procul.studios.ProcelioLauncher"
+    }
+}
+
+jlink {
+    imageZip = project.file("${buildDir}/distributions/${appPackaging}-${javafx.platform.classifier}.zip")
+    options = ['--strip-debug', '--compress', '2', '--no-header-files', '--no-man-pages']
+    launcher {
+        name = "${appLauncher}"
+    }
+}
+
+task downloadPackager(type: Download) {
+    if(OperatingSystem.current().isWindows()) {
+        src 'http://download2.gluonhq.com/jpackager/11/jdk.packager-windows.zip'
+    } else if(OperatingSystem.current().isLinux()) {
+        src 'http://download2.gluonhq.com/jpackager/11/jdk.packager-linux.zip'
+    } else {
+        throw new GradleException('Unsupported Operating System')
+    }
+    dest file(buildDir.path + "/jpackager/javapackager.zip")
+    overwrite false
+}
+
+task unzipPackager(dependsOn: downloadPackager, type: Copy) {
+    from zipTree(downloadPackager.dest)
+    into buildDir.path + '/jpackager/'
+}
+
+task jPackager(dependsOn: unzipPackager) {
+    dependsOn project.tasks.getByName("jlink")
+    def outputDir = buildDir.path + "/image/package"
+    outputs.dir outputDir
+
+    def binary = unzipPackager.destinationDir.path + "/jpackager"
+
+    def nativeType
+    if(OperatingSystem.current().isWindows()) {
+        nativeType = 'msi'
+    } else if(OperatingSystem.current().isLinux()) {
+        nativeType = 'deb'
+    } else {
+        throw new GradleException('Unsupported Operating System')
+    }
+
+    doLast {
+        exec {
+            executable binary
+            args = [
+                    'create-installer', nativeType,
+                    '--runtime-image', jlink.imageDir.get(),
+                    '--verbose',
+                    '--output', outputDir,
+                    '--name', project.ext.appName,
+                    '-m', project.ext.mainClassName,
+                    '--version', project.version,
+                    '--icon', project.ext.icon
+            ]
+        }
     }
 }
 

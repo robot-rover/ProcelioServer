@@ -31,7 +31,7 @@ public class ProcelioServer {
         Database database = new Database(config);
         AtomicDatabase atomicDatabase = new AtomicDatabase(database.getContext());
         ClientEndpoints clientWrapper = new ClientEndpoints(database.getContext(), config, atomicDatabase);
-        ServerEndpoints serverWrapper = new ServerEndpoints(database.getContext(), atomicDatabase);
+        ServerEndpoints serverWrapper = new ServerEndpoints(database.getContext(), config, atomicDatabase);
         LauncherEndpoints launcherWrapper = null;
 
         if(!StringUtils.isEmpty(config.buildFolderPath)) {

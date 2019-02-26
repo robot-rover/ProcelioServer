@@ -208,7 +208,7 @@ public class Patcher {
 
     public Build freshBuild() throws IOException, HashMismatchException {
         LOG.info("Making fresh build");
-        if (Files.exists(gameDir))
+        if (!Files.exists(gameDir))
             Files.createDirectory(gameDir);
         else
             FileUtils.deleteRecursive(gameDir);

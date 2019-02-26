@@ -10,6 +10,7 @@ module ps.ProcelioLauncher {
     requires jbsdiff;
     requires commons.compress;
     requires ps.ProcelioDelta;
+    requires jdk.crypto.ec;
     uses org.slf4j.spi.SLF4JServiceProvider;
     exports procul.studios;
 }

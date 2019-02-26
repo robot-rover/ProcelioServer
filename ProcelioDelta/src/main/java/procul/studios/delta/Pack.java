@@ -63,7 +63,7 @@ public class Pack {
         int len;
         while((len = input.read(buffer)) > 0){
             digest.update(buffer, 0, len);
-            length += 0;
+            length += len;
         }
         hash = digest.digest();
         LOG.debug("\tHash: {}", Hashing.printHexBinary(hash));

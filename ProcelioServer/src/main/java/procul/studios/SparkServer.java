@@ -64,7 +64,7 @@ public class SparkServer {
             delete("/users/:user/robots/:robot", client::deleteRobot);
             patch("/users/me/robots/:robot", client::editRobot);
             get("/statfile", client::getStatFile);
-            get("statfile/hash", client::getStatFileChecksum);
+            get("/statfile/hash", client::getStatFileChecksum);
         }
 
         //Server Endpoints
@@ -76,7 +76,7 @@ public class SparkServer {
         //Launcher Endpoints
         if(launcher != null) {
             get("/launcher/config", launcher::getConfig);
-            //get("/launcher/logo", launcher::getLogo);
+            get("/launcher/args", launcher::getArgs);
             get("/launcher", launcher::getPatchList);
             get("/launcher/build", launcher::fullBuild);
             get("/launcher/:patch", launcher::getPatchList);
