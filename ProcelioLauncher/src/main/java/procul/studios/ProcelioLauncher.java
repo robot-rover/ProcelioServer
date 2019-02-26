@@ -20,25 +20,31 @@ import javafx.scene.effect.BlendMode;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import net.harawata.appdirs.AppDirs;
+import net.harawata.appdirs.AppDirsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.delta.Build;
 import procul.studios.gson.LauncherConfiguration;
 import procul.studios.util.HashMismatchException;
-import procul.studios.util.OperatingSystem;
 import procul.studios.util.Tuple;
 import procul.studios.util.Version;
 
 import java.awt.*;
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -51,12 +57,14 @@ import static procul.studios.gson.GsonSerialize.gson;
 public class ProcelioLauncher extends Application {
     private static final Logger LOG = LoggerFactory.getLogger(ProcelioLauncher.class);
 
+    public static final AppDirs appDirs = AppDirsFactory.getInstance();
+
     public static final String procelioOrange = "#FF7500";
 
     /**
      * Constant determines the version of the launcher build
      */
-    private static final Version launcherVersion = new Version(0, 0, 3);
+    private static final Version launcherVersion = new Version(0, 0, 4);
 
     /**
      * Constant determines the endpoint for the Procelio Backend
@@ -76,25 +84,12 @@ public class ProcelioLauncher extends Application {
     /**
      * Directory to install the game
      */
-    static final Path gameDir = Paths.get(System.getProperty("user.home"), ".ProcelioGame");
-    static {
-        try {
-            Files.createDirectories(gameDir);
-        } catch (IOException e) {
-            LOG.error("Cannot create game directory", e);
-        }
-        if(OperatingSystem.get().equals(OperatingSystem.WINDOWS)) {
-            try {
-                Files.setAttribute(gameDir, "dos:hidden", Boolean.TRUE, LinkOption.NOFOLLOW_LINKS);
-            } catch (IOException e) {
-                LOG.error("Cannot hide game folder");
-            }
-        }
-    }
+    static Path gameDir;
+    static final String defaultGameDir = System.getProperty("user.home") + File.separator + ".ProcelioGame";
 
-    private static final Path readmeFile = gameDir.resolve("README.txt");
+    private static Path readmeFile;
 
-    private static final Path settingsFile = gameDir.resolve("launcherSettings.json");
+    private static Path settingsFile;
 
     private LauncherSettings settings;
 
@@ -110,6 +105,8 @@ public class ProcelioLauncher extends Application {
     private EndpointWrapper wrapper;
 
     private Patcher patcher;
+    int width;
+    int height;
 
     public static void main(String[] args) {
         launch(args);
@@ -117,6 +114,8 @@ public class ProcelioLauncher extends Application {
 
     @Override
     public void init() {
+        settingsFile = Paths.get(appDirs.getUserConfigDir("procelioLauncher", "data", "proculStudios", false)).resolve("config.json");
+        LOG.info("Settings File: {}", settingsFile);
         try {
             settings = gson.fromJson(Files.newBufferedReader(settingsFile), LauncherSettings.class);
         } catch (JsonParseException | IOException e) {
@@ -124,9 +123,20 @@ public class ProcelioLauncher extends Application {
         }
         if(settings == null)
             settings = new LauncherSettings();
+        if(settings.acceptedReadme == null)
+            settings.acceptedReadme = false;
+        if(settings.installDir == null)
+            settings.installDir = defaultGameDir;
+        gameDir = Paths.get(settings.installDir);
+
+        readmeFile = gameDir.resolve("README.txt");
+
+
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
+                settings.windowSize = new int[]{width, height};
                 String json = gson.toJson(settings);
+                Files.createDirectories(settingsFile.getParent());
                 Files.write(settingsFile, json.getBytes(StandardCharsets.UTF_8), StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
                 LOG.info("Settings Saved");
             } catch (IOException e) {
@@ -164,25 +174,32 @@ public class ProcelioLauncher extends Application {
 
         // Window
         this.primaryStage = primaryStage;
-        int width = 1136;
-        int height = 540;
+        width = 1136;
+        height = 540;
+        if(settings.windowSize != null && settings.windowSize.length == 2) {
+            width = settings.windowSize[0];
+            height = settings.windowSize[1];
+        }
         // #setResizable(false) causes weird issues with the background
-        primaryStage.setMinWidth(width);
+        primaryStage.setMinWidth(640);
         primaryStage.setWidth(width);
-        primaryStage.setMaxWidth(width);
+        primaryStage.setMaxWidth(1136);
 
-        primaryStage.setMinHeight(height);
+        primaryStage.setMinHeight(480);
         primaryStage.setHeight(height);
-        primaryStage.setMaxHeight(height);
+        primaryStage.setMaxHeight(540);
 
         primaryStage.setTitle("Procelio Launcher v" + launcherVersion);
         primaryStage.getIcons().add(new Image(ClassLoader.getSystemResourceAsStream("icon.png")));
+        primaryStage.heightProperty().addListener((observable, oldValue, newValue) -> height = newValue.intValue());
+        primaryStage.widthProperty().addListener(((observable, oldValue, newValue) -> width = newValue.intValue()));
         BorderPane contentRoot = new BorderPane();
 
         // Title Bar
         HBox titleBox = new HBox();
         titleBox.setPadding(new Insets(10));
         titleBox.setSpacing(0);
+        titleBox.setMaxHeight(120);
         contentRoot.topProperty().setValue(titleBox);
 
         // Logo
@@ -243,6 +260,14 @@ public class ProcelioLauncher extends Application {
         discord.setFitWidth(logoWidth);
         discord.setFitHeight(logoHeight);
         socialBar.getChildren().add(discord);
+
+        ImageView settings = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("gear_logo_small.png")));
+        settings.setPreserveRatio(true);
+        settings.setId("social");
+        settings.setOnMouseClicked(this::openSettings);
+        settings.setFitHeight(logoHeight);
+        settings.setFitWidth(logoWidth);
+        socialBar.getChildren().add(settings);
 
         VBox motd = new VBox();
         motd.setPadding(new Insets(10));
@@ -339,8 +364,17 @@ public class ProcelioLauncher extends Application {
         primaryStage.show();
     }
 
+    private void openSettings(MouseEvent mouseEvent) {
+        System.out.println("CLICK!");
+        Stage settingsStage = new Stage();
+        settingsStage.setMaxHeight(480);
+        settingsStage.setMaxWidth(640);
+        settingsStage.setScene(new Scene(new ConfigEditor(settings, settingsStage::close)));
+        settingsStage.show();
+    }
 
-    private void debugNode(Node node) {
+
+    public static void debugNode(Node node) {
         node.setStyle("-fx-border-color: black");
     }
 
@@ -386,6 +420,11 @@ public class ProcelioLauncher extends Application {
         if (launcherOutOfDate) { // Don't allow the user to use a launcher that's out of date
             FX.dialog("Launcher Out of Date", "You need to download a new version of the launcher!", Alert.AlertType.WARNING);
             return;
+        }
+        try {
+            Files.createDirectories(gameDir);
+        } catch (IOException e) {
+            LOG.error("Cannot create game directory", e);
         }
         Build manifest = null;
         try {

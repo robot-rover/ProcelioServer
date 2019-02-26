@@ -54,7 +54,7 @@ public class NewsList extends ScrollPane {
         contentRoot.setAlignment(Pos.CENTER_RIGHT);
         contentRoot.setFillHeight(false);
         contentRoot.setSpacing(50);
-        contentRoot.setPadding(new Insets(0,50,0,50));
+        contentRoot.setPadding(new Insets(10,50,10,50));
         setHvalue(1);
         contentRoot.setOnScroll(event -> {
 
@@ -70,9 +70,12 @@ public class NewsList extends ScrollPane {
         for(LauncherConfiguration.Update update : updates) {
             boolean imageBackground = false;
             StackPane updateRoot = new StackPane();
-            updateRoot.setPrefSize(itemWidth, itemHeight);
+            updateRoot.setPrefSize(itemWidth, Integer.MAX_VALUE);
             updateRoot.setBackground(backgroundObject);
-            updateRoot.setClip(new Rectangle(itemWidth, itemHeight));
+            updateRoot.layoutBoundsProperty().addListener((observable, oldValue, newValue) -> {
+                updateRoot.setClip(new Rectangle(newValue.getWidth(), newValue.getHeight()));
+            });
+//            updateRoot.setClip(new Rectangle(itemWidth, itemHeight));
             updateRoot.setAlignment(Pos.TOP_CENTER);
             contentRoot.getChildren().add(updateRoot);
 
@@ -137,11 +140,14 @@ public class NewsList extends ScrollPane {
                 StackPane descriptionHolder = new StackPane();
                 descriptionHolder.setId("updateDescriptionBackground");
                 descriptionHolder.setAlignment(Pos.BASELINE_CENTER);
-                descriptionHolder.setPrefSize(itemWidth, itemHeight);
+                descriptionHolder.setPrefSize(itemWidth, Integer.MAX_VALUE);
                 descriptionHolder.setPadding(new Insets(5));
                 if(imageBackground)
                     descriptionHolder.setBackground(backgroundObject);
-                descriptionHolder.setTranslateY(itemHeight);
+                updateRoot.layoutBoundsProperty().addListener(((observable, oldValue, newValue) -> {
+                    descriptionHolder.setTranslateY(newValue.getHeight());
+                }));
+//                  descriptionHolder.setTranslateY(itemHeight);
                 bottomNode = descriptionHolder;
                 updateRoot.getChildren().add(descriptionHolder);
 
@@ -154,7 +160,7 @@ public class NewsList extends ScrollPane {
 
             Pane collider = new Pane();
             updateRoot.getChildren().add(collider);
-            EventHandler<? super MouseEvent> mouseListener = new ScrollListener(topNode, bottomNode, offsetNode);
+            EventHandler<? super MouseEvent> mouseListener = new ScrollListener(topNode, bottomNode, offsetNode, updateContent);
             collider.setOnMouseEntered(mouseListener);
             collider.setOnMouseExited(mouseListener);
 
@@ -175,17 +181,19 @@ public class NewsList extends ScrollPane {
         Node topNode;
         Pane bottomNode;
         Pane offsetNode;
+        Node clip;
 
-        public ScrollListener(Node topNode, Pane bottomNode, Pane offsetNode) {
+        public ScrollListener(Node topNode, Pane bottomNode, Pane offsetNode, Node clip) {
             this.topNode = topNode;
             this.bottomNode = bottomNode;
             this.offsetNode = offsetNode;
+            this.clip = clip;
         }
         @Override
         public void handle(MouseEvent event) {
             double scrollOffest = 0;
             if(offsetNode != null) {
-                bottomNode.setMaxHeight(itemHeight - offsetNode.getHeight());
+                bottomNode.setMaxHeight(clip.getLayoutBounds().getHeight() - offsetNode.getHeight());
                 scrollOffest = offsetNode.getHeight();
             }
             if(current != null) {
@@ -193,9 +201,9 @@ public class NewsList extends ScrollPane {
             }
 
             if(event.getEventType().equals(MOUSE_ENTERED)) {
-                current = new ScrollTransition(-itemHeight + scrollOffest, topNode, bottomNode);
+                current = new ScrollTransition(-clip.getLayoutBounds().getHeight() + scrollOffest, topNode, bottomNode, clip);
             } else if (event.getEventType().equals(MOUSE_EXITED)) {
-                current = new ScrollTransition(0, topNode, bottomNode);
+                current = new ScrollTransition(0, topNode, bottomNode, clip);
             }
             current.play();
         }
@@ -205,12 +213,14 @@ public class NewsList extends ScrollPane {
 
         private final Node topNode;
         private final Node bottomNode;
+        private final Node clip;
         double scrollStart;
         double scrollDelta;
 
-        public ScrollTransition(double scrollTo, Node topNode, Node bottomNode) {
+        public ScrollTransition(double scrollTo, Node topNode, Node bottomNode, Node clip) {
             this.topNode = topNode;
             this.bottomNode = bottomNode;
+            this.clip = clip;
 
             scrollStart = topNode.getTranslateY();
             scrollDelta = scrollTo - scrollStart;
@@ -232,7 +242,7 @@ public class NewsList extends ScrollPane {
             if(topNode != null)
                 topNode.setTranslateY(scrollStart + (scrollDelta * frac));
             if(bottomNode != null)
-                bottomNode.setTranslateY(scrollStart + itemHeight + (scrollDelta * frac));
+                bottomNode.setTranslateY(scrollStart + clip.getLayoutBounds().getHeight() + (scrollDelta * frac));
         }
     }
 

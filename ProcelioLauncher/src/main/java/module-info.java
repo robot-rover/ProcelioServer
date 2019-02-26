@@ -11,6 +11,7 @@ module ps.ProcelioLauncher {
     requires commons.compress;
     requires ps.ProcelioDelta;
     requires jdk.crypto.ec;
+    requires net.harawata.appdirs;
     uses org.slf4j.spi.SLF4JServiceProvider;
     exports procul.studios;
 }

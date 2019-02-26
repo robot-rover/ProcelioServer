@@ -1,5 +1,7 @@
 package procul.studios;
 
 public class LauncherSettings {
-    boolean acceptedReadme = false;
+    Boolean acceptedReadme;
+    int[] windowSize;
+    String installDir;
 }
