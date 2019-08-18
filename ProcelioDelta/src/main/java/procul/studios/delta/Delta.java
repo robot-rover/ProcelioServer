@@ -89,7 +89,7 @@ public class Delta {
             try (InputStream sourceStream = new BufferedInputStream(Files.newInputStream(sourceFile));
                  DigestInputStream targetStream = new DigestInputStream(new BufferedInputStream(Files.newInputStream(targetFile)), Hashing.getMessageDigest());
                  OutputStream patchStream = new BufferedOutputStream(Files.newOutputStream(patchFile))) {
-                final int blockSize = 1024*1024*5;
+                final int blockSize = 1024*1024;
                 BytesUtil.writeInt(patchStream, blockSize);
                 int size = Math.toIntExact(Math.max(Files.size(targetFile), Files.size(sourceFile)));
                 LOG.debug("Block size: {}, Old File: {}, New File: {}, Total Blocks: {}", size, Files.size(sourceFile), Files.size(targetFile), size/blockSize + 1);

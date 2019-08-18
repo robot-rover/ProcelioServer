@@ -72,7 +72,7 @@ task execute(type:JavaExec) {
 task executeMem(type:JavaExec) {
     main = mainClassName
     classpath = sourceSets.main.runtimeClasspath
-    jvmArgs = ['-Xms2g', '-Xmx8g', '-Xss50M']
+    jvmArgs = ['-Xms2g', '-Xmx8g', '-Xss8M']
 }
 
 task copyToLib(type: Copy) {
