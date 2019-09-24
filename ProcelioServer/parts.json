@@ -13,5 +13,5 @@
   "startingRobots": [
     "robot.bin"
   ],
-  "startingCurrency": 500
+  "startingCurrency": 5000
 }
