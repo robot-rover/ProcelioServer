@@ -7,6 +7,7 @@ import java.util.List;
 
 public class LauncherConfiguration extends Configuration {
     public String websiteUrl;
+    public String[] launcherArguments;
     public List<Update> updates;
     public Integer[] launcherVersion;
     public String quoteOfTheDay;

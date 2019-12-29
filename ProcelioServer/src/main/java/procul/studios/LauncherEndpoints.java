@@ -165,6 +165,6 @@ public class LauncherEndpoints {
     }
 
     public String getArgs(Request req, Response res) {
-        return gson.toJson(new LaunchArguments("-IP", "67.242.154.113", "-PORT", "7777", "-client"));
+        return gson.toJson(new LaunchArguments(launcherConfig.launcherArguments));
     }
 }
