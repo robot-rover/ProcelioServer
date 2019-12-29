@@ -1,87 +1,50 @@
 {
-  "websiteUrl": "https://sites.google.com/bascs.org/procelio/home",
-  "quoteOfTheDay": "Don't be sad it crashed, be happy you have it",
-  "quoteAuthor": "robot_rover",
+  "websiteUrl": "https://proceliogame.com/",
+  "quoteOfTheDay": "Here's your shiny launcher. Complain and we go back to .zip files",
+  "quoteAuthor": "Brenn",
+  "launcherArguments": [
+    "-IP",
+    "158.69.0.233",
+    "-PORT",
+    "7778",
+    "-client"
+  ],
   "updates": [
     {
-      "version": [0,0,0],
-      "description": "testing the launcher thank you very much",
-      "hyperlink": "https://www.google.com",
-      "image": "https://www.aacrao.org/images/default-source/default-album/200x250.png?sfvrsn=9021b251_0",
-      "title": "now everyone gets a title"
+      "version": [0,7,1],
+      "description": "This is the first update available on the launcher. It's exciting, isn't it?",
+      "hyperlink": "https://proceliogame.com/changelogs/071",
+      "title": "The Audiovisual Experience"
     },
     {
-      "title": "This title is longer than is reasonable for a title :-P",
-      "description": "testing the launcher thank you very much, this is really really really really really really really really really really really really really really really really really really long!",
-      "hyperlink": "https://www.sovietbot.xyz",
-      "image": "http://images.tmz.com/2014/10/26/liam-hemsworth-200x250.jpg"
+      "version": [0,8,0],
+      "description": "Wait, wasn't this supposed to be Parts?",
+      "hyperlink": "https://proceliogame.com/changelogs/080",
+      "title": "Localization and UI"
     },
     {
-      "version": [0,0,2],
-      "description": "No image because SCREW YOU",
-      "hyperlink": "https://www.sovietbot.xyz",
-      "title": "This has a Title!!!"
+      "version": [0,8,1],
+      "description": "Fixed Chat and other high priority bugfixes.",
+      "title": "Hotfix"
     },
     {
-      "version": [0,0,2],
-      "description": "No image because SCREW YOU",
-      "hyperlink": "https://www.sovietbot.xyz",
-      "title": "This has a Title!!!"
+      "version": [0,8,8],
+      "description": "Can make bigger bots than before. Tons of optimization. +New Code, -Old Code. Wheel and Hover behavior was tweaked.",
+      "title": "Bigger Bots",
+      "hyperlink": "https://proceliogame.com/changelogs/088"
     },
     {
-      "version": [0,0,2],
-      "description": "No image because SCREW YOU",
-      "hyperlink": "https://www.sovietbot.xyz",
-      "title": "This has a Title!!!"
+      "version": [0,8,9],
+      "description": " NEW\n    - Garage model\n    - Improvements to audio settings\n    - Backend prep for 1x2 chassis parts\n    - Press F11 to toggle fullscreen\n    - Re-enabled Jingle Shower song\n  CHANGED\n    - Much improved hoverblade physics\n    - Improved wheel physics\n    - parts now glow christmas colors\n    - Tweaks to drive map\n    - Changed friction\n    - Increased starting part amount\n  NOTABLE FIXES\n    - launcher netcode issue\n    - wheels breaking multiplayer",
+      "title": "Tis the Season",
+      "hyperlink": "https://proceliogame.com/changelogs/089"
     },
     {
-      "version": [0,0,2],
-      "description": "No image because SCREW YOU",
-      "hyperlink": "https://www.sovietbot.xyz",
-      "title": "This has a Title!!!"
-    },
-    {
-      "version": [0,0,2],
-      "description": "No image because SCREW YOU",
-      "hyperlink": "https://www.sovietbot.xyz",
-      "title": "This has a Title!!!"
-    },
-    {
-      "version": [0,0,2],
-      "description": "No image because SCREW YOU",
-      "hyperlink": "https://www.sovietbot.xyz",
-      "title": "This has a Title!!!"
-    },
-    {
-      "version": [0,0,2],
-      "description": "No image because SCREW YOU",
-      "hyperlink": "https://www.sovietbot.xyz",
-      "title": "This has a Title!!!"
-    },
-    {
-      "version": [0,0,2],
-      "description": "No image because SCREW YOU",
-      "hyperlink": "https://www.sovietbot.xyz",
-      "title": "This has a Title!!!"
-    },
-    {
-      "version": [0,0,2],
-      "description": "No image because SCREW YOU",
-      "hyperlink": "https://www.sovietbot.xyz",
-      "title": "This has a Title!!!"
-    },
-    {
-      "version": [0,0,2],
-      "description": "No image because SCREW YOU",
-      "hyperlink": "https://www.sovietbot.xyz",
-      "title": "This has a Title!!!"
-    },
-    {
-      "version": [0,0,2],
-      "description": "No image because SCREW YOU",
-      "hyperlink": "https://www.sovietbot.xyz",
-      "title": "This has a Title!!!"
+     "version": [0,9,3],
+     "description": "Bugfixes and optimizations\n See website for details",
+     "title": "Actually Decent Netcode",
+     "hyperlink": "https://proceliogame.com/changelogs/093"
     }
   ],
-  "launcherVersion": [0,0,1]
+  "launcherVersion": [0,0,4]
 }
