@@ -1,7 +1,7 @@
 plugins {
     id 'java'
     id 'application'
-    id "org.beryx.jlink" version "2.6.0"
+    id "org.beryx.jlink" version '2.19.0'
 }
 
 group 'procul.studios'
