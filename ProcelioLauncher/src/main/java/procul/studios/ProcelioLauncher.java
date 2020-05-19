@@ -190,7 +190,7 @@ public class ProcelioLauncher extends Application {
         primaryStage.setMaxHeight(540);
 
         primaryStage.setTitle("A Procelio Launcher v" + launcherVersion);
-        primaryStage.getIcons().add(new Image(ClassLoader.getSystemResourceAsStream("icon.png")));
+        primaryStage.getIcons().add(ImageResources.load("icon.png"));
         primaryStage.heightProperty().addListener((observable, oldValue, newValue) -> height = newValue.intValue());
         primaryStage.widthProperty().addListener(((observable, oldValue, newValue) -> width = newValue.intValue()));
         BorderPane contentRoot = new BorderPane();
@@ -219,7 +219,7 @@ public class ProcelioLauncher extends Application {
         dropShadow.setOffsetX(3.0);
         dropShadow.setOffsetY(3.0);
 
-        ImageView logo = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("banner_scaled.png")));
+        ImageView logo = new ImageView(ImageResources.load("banner_scaled.png"));
         logo.setSmooth(true);
         logo.setEffect(dropShadow);
         logo.setPreserveRatio(true);
@@ -237,7 +237,7 @@ public class ProcelioLauncher extends Application {
         double logoWidth = 30;
         double logoHeight = 30;
 
-        ImageView youtube = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("youtube_logo_small.png")));
+        ImageView youtube = new ImageView(ImageResources.load("youtube_logo_small.png"));
         youtube.setPreserveRatio(true);
         youtube.setId("social");
         youtube.setOnMouseClicked(v -> openBrowser("https://www.youtube.com/channel/UCb9SlKVDpFMb3_BkcTNv8SQ"));
@@ -245,7 +245,7 @@ public class ProcelioLauncher extends Application {
         youtube.setFitHeight(logoHeight);
         socialBar.getChildren().add(youtube);
 
-        ImageView twitter = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("twitter_logo_small.png")));
+        ImageView twitter = new ImageView(ImageResources.load("twitter_logo_small.png"));
         twitter.setPreserveRatio(true);
         twitter.setId("social");
         twitter.setOnMouseClicked(v -> openBrowser("https://twitter.com/proceliogame?lang=en"));
@@ -253,7 +253,7 @@ public class ProcelioLauncher extends Application {
         twitter.setFitHeight(logoHeight);
         socialBar.getChildren().add(twitter);
 
-        ImageView discord = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("discord_logo_small.png")));
+        ImageView discord = new ImageView(ImageResources.load("discord_logo_small.png"));
         discord.setPreserveRatio(true);
         discord.setId("social");
         discord.setOnMouseClicked(v -> openBrowser("https://discord.gg/TDWKZzf"));
@@ -261,7 +261,7 @@ public class ProcelioLauncher extends Application {
         discord.setFitHeight(logoHeight);
         socialBar.getChildren().add(discord);
 
-        ImageView settings = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("gear_logo_small.png")));
+        ImageView settings = new ImageView(ImageResources.load("gear_logo_small.png"));
         settings.setPreserveRatio(true);
         settings.setId("social");
         settings.setOnMouseClicked(this::openSettings);
@@ -342,13 +342,13 @@ public class ProcelioLauncher extends Application {
         launchButtonHolder.setPadding(new Insets(0, 0, 0, 0));
         launchBar.getChildren().add(launchButtonHolder);
 
-        Button launchButton = new Button("Lanch");
+        Button launchButton = new Button("Launch");
         launchButton.setOnAction(this::launchButtonClick);
         launchButton.setId("launch");
         launchButton.setPadding(new Insets(15, 45, 15, 45));
         launchButtonHolder.getChildren().add(launchButton);
 
-        ImageView windowBackground = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("background.png")));
+        ImageView windowBackground = new ImageView(ImageResources.load("background.png"));
         windowBackground.setPreserveRatio(true);
         StackPane root = new StackPane(windowBackground, contentRoot);
         root.setAlignment(Pos.CENTER);
@@ -378,7 +378,7 @@ public class ProcelioLauncher extends Application {
         node.setStyle("-fx-border-color: black");
     }
 
-    public void warnUserNoConnection() {
+    private void warnUserNoConnection() {
         FX.dialog("Connection Error", "Unable to communicate with Procelio Servers", Alert.AlertType.WARNING);
     }
 
@@ -541,7 +541,7 @@ public class ProcelioLauncher extends Application {
         }
         try {
             game.waitFor();
-            LOG.info("Procelio Output ->\n", new String(game.getInputStream().readAllBytes()));
+            LOG.info("Procelio Output ->" + new String(game.getInputStream().readAllBytes()) + "\n");
         } catch (InterruptedException e) {
             LOG.warn("Un-Iconify started early", e);
         } catch (IOException e) {
