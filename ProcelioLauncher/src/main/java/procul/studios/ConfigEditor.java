@@ -59,6 +59,7 @@ public class ConfigEditor extends BorderPane {
     }
 
     private void commitChanges() {
+        settings.configured = true;
         settings.installDir = installDir.get();
         System.out.println(installDir.get());
         closeWindow.run();

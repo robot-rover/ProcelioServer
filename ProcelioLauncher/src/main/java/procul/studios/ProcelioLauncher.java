@@ -189,7 +189,7 @@ public class ProcelioLauncher extends Application {
         primaryStage.setHeight(height);
         primaryStage.setMaxHeight(540);
 
-        primaryStage.setTitle("Procelio Launcher v" + launcherVersion);
+        primaryStage.setTitle("A Procelio Launcher v" + launcherVersion);
         primaryStage.getIcons().add(new Image(ClassLoader.getSystemResourceAsStream("icon.png")));
         primaryStage.heightProperty().addListener((observable, oldValue, newValue) -> height = newValue.intValue());
         primaryStage.widthProperty().addListener(((observable, oldValue, newValue) -> width = newValue.intValue()));
@@ -256,7 +256,7 @@ public class ProcelioLauncher extends Application {
         ImageView discord = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("discord_logo_small.png")));
         discord.setPreserveRatio(true);
         discord.setId("social");
-        discord.setOnMouseClicked(v -> openBrowser("https://discord.gg/sKmA3QV"));
+        discord.setOnMouseClicked(v -> openBrowser("https://discord.gg/TDWKZzf"));
         discord.setFitWidth(logoWidth);
         discord.setFitHeight(logoHeight);
         socialBar.getChildren().add(discord);
@@ -342,7 +342,7 @@ public class ProcelioLauncher extends Application {
         launchButtonHolder.setPadding(new Insets(0, 0, 0, 0));
         launchBar.getChildren().add(launchButtonHolder);
 
-        Button launchButton = new Button("Launch");
+        Button launchButton = new Button("Lanch");
         launchButton.setOnAction(this::launchButtonClick);
         launchButton.setId("launch");
         launchButton.setPadding(new Insets(15, 45, 15, 45));
@@ -404,8 +404,16 @@ public class ProcelioLauncher extends Application {
         }
     }
 
+    private void launchClick(MouseEvent me) {
+        openSettings(null);
+    }
+
     //Listener for click on Launch Button
     private void launchButtonClick(ActionEvent e) {
+        if (!settings.configured) {
+            openSettings(null);
+            return;
+        }
         if (updateService.getState().equals(Worker.State.RUNNING) || updateService.getState().equals(Worker.State.SCHEDULED)) {
             LOG.warn("Unable to start updateService. Current State: {}", updateService.getState());
         } else {
@@ -421,6 +429,11 @@ public class ProcelioLauncher extends Application {
             FX.dialog("Launcher Out of Date", "You need to download a new version of the launcher!", Alert.AlertType.WARNING);
             return;
         }
+
+        if (!settings.configured) { // Don't set up the game before first init
+            return;
+        }
+
         try {
             Files.createDirectories(gameDir);
         } catch (IOException e) {
@@ -496,7 +509,12 @@ public class ProcelioLauncher extends Application {
                 }
             } catch (IOException e) {
                 LOG.warn("Cannot read readmeFile", e);
+                return;
             }
+        }
+        if (settings.installDir == null) {
+            LOG.warn("No install dir set yet");
+            return;
         }
         boolean isReadable = executable.toFile().setReadable(true);
         boolean isExecutable = executable.toFile().setExecutable(true, false);
