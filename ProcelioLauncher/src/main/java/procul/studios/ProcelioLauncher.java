@@ -112,6 +112,11 @@ public class ProcelioLauncher extends Application {
         launch(args);
     }
 
+    private void loadPaths() {
+        gameDir = Paths.get(settings.installDir);
+
+        readmeFile = gameDir.resolve("README.txt");
+    }
     @Override
     public void init() {
         settingsFile = Paths.get(appDirs.getUserConfigDir("procelioLauncher", "data", "proculStudios", false)).resolve("config.json");
@@ -127,9 +132,7 @@ public class ProcelioLauncher extends Application {
             settings.acceptedReadme = false;
         if(settings.installDir == null)
             settings.installDir = defaultGameDir;
-        gameDir = Paths.get(settings.installDir);
 
-        readmeFile = gameDir.resolve("README.txt");
 
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -370,7 +373,7 @@ public class ProcelioLauncher extends Application {
         settingsStage.setMaxHeight(480);
         settingsStage.setHeight(400);
         settingsStage.setMaxWidth(640);
-        settingsStage.setScene(new Scene(new ConfigEditor(settings, settingsStage::close)));
+        settingsStage.setScene(new Scene(new ConfigEditor(settings, () -> {this.loadPaths(); settingsStage.close();})));
         settingsStage.show();
     }
 
