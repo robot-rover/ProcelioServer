@@ -368,6 +368,7 @@ public class ProcelioLauncher extends Application {
         System.out.println("CLICK!");
         Stage settingsStage = new Stage();
         settingsStage.setMaxHeight(480);
+        settingsStage.setHeight(400);
         settingsStage.setMaxWidth(640);
         settingsStage.setScene(new Scene(new ConfigEditor(settings, settingsStage::close)));
         settingsStage.show();
@@ -467,12 +468,13 @@ public class ProcelioLauncher extends Application {
             manifest = patcher.updateBuild();
         } catch (IOException e) {
             LOG.warn("Unable to connect to server");
+            return;
         } catch (HashMismatchException e) {
-            FX.dialog("Hash Mismatch", "Downloaded build but the file was corrupted", Alert.AlertType.ERROR);
+            FX.dialog("Hash Mismatch", "Downloaded build but the file was corrupted.\n If error persists, reinstall game", Alert.AlertType.ERROR);
             LOG.warn("Hash Mismatch", e);
+            return;
         }
 
-        // even if patch failed, still run the game
         launchFile(gameDir.resolve(manifest.getManifest().exec));
     }
 
@@ -512,10 +514,7 @@ public class ProcelioLauncher extends Application {
                 return;
             }
         }
-        if (settings.installDir == null) {
-            LOG.warn("No install dir set yet");
-            return;
-        }
+
         boolean isReadable = executable.toFile().setReadable(true);
         boolean isExecutable = executable.toFile().setExecutable(true, false);
         LOG.info("Launching Procelio from {} - R:{}, X:{}", executable, isReadable, isExecutable);
