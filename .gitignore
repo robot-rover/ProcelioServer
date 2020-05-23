@@ -2,6 +2,7 @@
 procelio.db
 .idea
 ProcelioServer/src/test/resources
+ProcelioLauncher/jpckg
 *.jks
 config.json
 statfile.json

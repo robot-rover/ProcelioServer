@@ -63,6 +63,10 @@ public class Inventory {
         return out.toByteArray();
     }
 
+    public Set<Short> getItems() {
+        return parts.keySet();
+    }
+
     public int getStock(short partId) {
         return parts.getOrDefault(partId, 0);
     }

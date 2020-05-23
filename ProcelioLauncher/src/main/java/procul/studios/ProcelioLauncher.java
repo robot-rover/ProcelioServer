@@ -40,6 +40,7 @@ import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -132,7 +133,7 @@ public class ProcelioLauncher extends Application {
             settings.acceptedReadme = false;
         if(settings.installDir == null)
             settings.installDir = defaultGameDir;
-
+        loadPaths();
 
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -150,12 +151,11 @@ public class ProcelioLauncher extends Application {
 
         Font.loadFont(ClassLoader.getSystemResource("ShareTech-Regular.ttf").toExternalForm(), -1);
         LOG.info("Current Module: {}", this.getClass().getModule());
-
     }
 
     @Override
     public void start(Stage primaryStage) {
-
+        LOG.info("Starting window");
         wrapper = new EndpointWrapper();
 
         try {
@@ -251,7 +251,7 @@ public class ProcelioLauncher extends Application {
         ImageView twitter = new ImageView(ImageResources.load("twitter_logo_small.png"));
         twitter.setPreserveRatio(true);
         twitter.setId("social");
-        twitter.setOnMouseClicked(v -> openBrowser("https://twitter.com/proceliogame?lang=en"));
+        twitter.setOnMouseClicked(this::openAutoUpdate);//v -> openBrowser("https://twitter.com/proceliogame?lang=en"));
         twitter.setFitWidth(logoWidth);
         twitter.setFitHeight(logoHeight);
         socialBar.getChildren().add(twitter);
@@ -377,6 +377,14 @@ public class ProcelioLauncher extends Application {
         settingsStage.show();
     }
 
+    private void openAutoUpdate(MouseEvent event) {
+        Stage settingsStage = new Stage();
+        settingsStage.setMaxHeight(480);
+        settingsStage.setHeight(400);
+        settingsStage.setMaxWidth(640);
+        settingsStage.setScene(new Scene(new AutoUpdateScript(wrapper, this::updateProgressVisible, this::updateProgressStatus, settingsStage::close)));
+        settingsStage.show();
+    }
 
     public static void debugNode(Node node) {
         node.setStyle("-fx-border-color: black");
