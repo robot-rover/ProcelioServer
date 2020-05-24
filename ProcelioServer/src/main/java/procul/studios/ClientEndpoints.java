@@ -161,10 +161,10 @@ public class ClientEndpoints {
             context.update(USERTABLE).set(USERTABLE.INVENTORY, inventory.serialize()).set(USERTABLE.CURRENCY, userCurrency).where(USERTABLE.ID.eq(id)).execute();
             return new GsonTuple(new Message("The transaction completed successfully."), Message.class);
         });
-        return proccessFuture(waitFor, gsonTuple -> gsonTuple.serialize(gson), req, res);
+        return processFuture(waitFor, gsonTuple -> gsonTuple.serialize(gson), req, res);
     }
 
-    private <V> String proccessFuture(Future<V> future, Function<V, String> processor, Request req, Response res){
+    private <V> String processFuture(Future<V> future, Function<V, String> processor, Request req, Response res){
         V result = null;
         try {
             result = future.get(timeout, TimeUnit.SECONDS);
@@ -261,7 +261,7 @@ public class ClientEndpoints {
             context.update(USERTABLE).set(USERTABLE.ROBOTS, garage.serialize()).where(USERTABLE.ID.eq(id)).execute();
             return new GsonTuple(new RobotInfo(newRobotId, name), RobotInfo.class);
         });
-        return proccessFuture(created, json -> json.serialize(gson), req, res);
+        return processFuture(created, json -> json.serialize(gson), req, res);
     }
 
     public String deleteRobot(Request req, Response res){
@@ -289,7 +289,7 @@ public class ClientEndpoints {
             res.status(404);
             return new GsonTuple(new Message("The robot could not be found", 404), Message.class);
         });
-        return proccessFuture(removed, v -> v.serialize(gson), req, res);
+        return processFuture(removed, v -> v.serialize(gson), req, res);
     }
 
     public String editRobot(Request req, Response res) throws IOException {
@@ -319,7 +319,7 @@ public class ClientEndpoints {
             context.update(USERTABLE).set(USERTABLE.ROBOTS, robots.serialize()).set(USERTABLE.INVENTORY, inventory.serialize()).where(USERTABLE.ID.eq(id)).execute();
             return new GsonTuple(new Message("The robot was editted successfully."), Message.class);
         });
-        return proccessFuture(result, json -> json.serialize(gson), req, res);
+        return processFuture(result, json -> json.serialize(gson), req, res);
     }
 
     public String getUser(Request req, Response res) {
@@ -437,7 +437,7 @@ public class ClientEndpoints {
             String ip = req.headers("CF-Connecting-IP");
             if(ip == null)
                 ip = req.ip();
-            long expires = Instant.now().plus(1, ChronoUnit.DAYS).getEpochSecond();
+            long expires = auth.noexpire ? Instant.now().plus(5000, ChronoUnit.DAYS).getEpochSecond() : Instant.now().plus(1, ChronoUnit.DAYS).getEpochSecond();
             context.deleteFrom(AUTHTABLE).where(AUTHTABLE.USERID.eq(id)).execute();
             context.insertInto(AUTHTABLE).set(AUTHTABLE.USERID, databaseHash.component2()).set(AUTHTABLE.CLIENTIP, ip).set(AUTHTABLE.EXPIRES, expires).set(AUTHTABLE.TOKEN, token).execute();
             context.update(USERTABLE).set(USERTABLE.LASTLOGIN, Instant.now().getEpochSecond()).where(USERTABLE.ID.eq(id)).execute();

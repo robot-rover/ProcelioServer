@@ -102,9 +102,8 @@ task jPackager(dependsOn: unzipPackager) {
     dependsOn project.tasks.getByName("jlink")
     def outputDir = buildDir.path + "/image/package"
     outputs.dir outputDir
-
     def binary = unzipPackager.destinationDir.path + "/jpackager"
-
+	logger.warn(binary);
     def nativeType
     if(OperatingSystem.current().isWindows()) {
         nativeType = 'msi'
@@ -131,10 +130,37 @@ task jPackager(dependsOn: unzipPackager) {
     }
 }
 
+task makeExe(dependsOn: unzipPackager) {
+    dependsOn project.tasks.getByName("jlink")
+    def outputDir = buildDir.path + "/image/package"
+    outputs.dir outputDir
+    def nativeType
+    if(OperatingSystem.current().isWindows()) {
+        nativeType = 'msi'
+    } else if(OperatingSystem.current().isLinux()) {
+        nativeType = 'deb'
+    } else {
+        throw new GradleException('Unsupported Operating System')
+    }
+
+    doLast {
+        exec {
+            executable 'jpackage'
+            args = [
+			    '-t', 'app-image' ,
+				'--input', 'build/resources',
+				'--runtime-image', jlink.imageDir.get(),
+                '--dest', 'jpckg',
+				'--module', project.ext.mainClassName
+            ]
+        }
+    }
+}
+
 run {
     inputs.property("moduleName", moduleName)
     doFirst {
-        println classpath.asPath
+        println "ABC " + mainClassName
         jvmArgs = [
                 '--module-path', classpath.asPath,
                 '--module', mainClassName

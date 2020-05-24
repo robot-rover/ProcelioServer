@@ -49,7 +49,7 @@ public class FileTreeZip {
     }
 
     private void addFileToArchive(Path path, ZipOutputStream out) throws IOException {
-        ZipEntry entry = new ZipEntry(path.toString());
+        ZipEntry entry = new ZipEntry(path.toString().replace("\\", "/"));
         out.putNextEntry(entry);
         Files.copy(source.resolve(path), out);
         out.closeEntry();

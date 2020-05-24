@@ -12,16 +12,14 @@ import procul.studios.pojo.response.LauncherDownload;
 import procul.studios.util.*;
 
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -29,6 +27,7 @@ import static procul.studios.ProcelioLauncher.backendEndpoint;
 import static procul.studios.gson.GsonSerialize.gson;
 
 public class Patcher {
+    private static final String updateInfoFile = "__updatetimestamp";
 
     EndpointWrapper wrapper;
     Build currentBuild;
@@ -59,11 +58,22 @@ public class Patcher {
      */
     public Build updateBuild() throws IOException, HashMismatchException {
         LauncherDownload gameStatus = wrapper.checkForUpdates(currentBuild.getVersion());
-
         // if the versions match, the game is up to date
         if (gameStatus.upToDate) {
             LOG.info("All up to date");
             return currentBuild;
+        }
+
+        if (wasInterrupted()) {
+            updateVisibleCallback.accept(true);
+            LOG.warn("Rolling back interrupted update");
+            updateStatusCallback.accept("Rolling back interrupted update");
+
+            rollbackAttempt();
+            LOG.warn("Roll successful");
+            updateStatusCallback.accept("Rollback successful. Re-attempting update...");
+
+            try { Thread.sleep(1000); } catch (Exception ignored) { /* Purely for visibility */}
         }
 
         // if no patch path is available, only option is a fresh build
@@ -88,7 +98,79 @@ public class Patcher {
         return currentBuild;
     }
 
+    /**
+     * Return true if a previous attempt to patch was interrupted
+     */
+    public boolean wasInterrupted() {
+        return gameDir.resolve(updateInfoFile).toFile().exists();
+    }
+
+    /**
+     * Attempt to roll back the state of the directory: copy .old files back to the original name.
+     * Intended for use if a patch was aborted midway through. Will not delete new files.
+     * @throws IOException
+     */
+    public void rollbackAttempt() throws IOException {
+        Path updateLog = gameDir.resolve(updateInfoFile);
+        BufferedReader br = new BufferedReader(new FileReader(updateLog.toFile()));
+        long timestamp;
+        try {
+            timestamp = Long.parseLong(br.readLine());
+        } catch (NumberFormatException nfe) {
+            LOG.error(nfe.toString());
+            throw new IOException();
+        }
+
+        String suffix = ".old" + timestamp;
+
+        rollbackDirectory(gameDir.toFile(), suffix);
+
+        updateLog.toFile().delete();
+    }
+
+    private void rollbackDirectory(File f, String suffix) throws IOException {
+        if (!f.isDirectory())
+            return;
+        File[] sub = f.listFiles();
+        if (sub == null)
+            return;
+
+        for (int i = 0; i < sub.length; ++i) {
+            if (!sub[i].getPath().endsWith(suffix)) {
+                if (sub[i].isDirectory())
+                    rollbackDirectory(sub[i], suffix);
+                continue;
+            }
+            String newName = sub[i].getAbsolutePath();
+            newName = newName.substring(0, newName.length() - suffix.length());
+            Path newPath = Paths.get(newName);
+            if (newPath.toFile().exists())
+                newPath.toFile().delete();
+            Files.move(sub[i].toPath(), newPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            rollbackDirectory(newPath.toFile(), suffix);
+        }
+
+    }
+
+    /**
+     * Eliminate all .old####### files from the folder, recursively
+     * @param root The top-level directory to clear from
+     */
+    public void clearOldFiles(File root) {
+        LauncherUtilities.deleteMatchingRecursive(root, ".*\\.old\\d+$");
+    }
+
+
+
+
+
     public void applyDelta(InputStream delta) throws IOException {
+        long timestamp =  System.currentTimeMillis();
+        Path updateLog = gameDir.resolve(updateInfoFile);
+        BufferedWriter bw = new BufferedWriter(new FileWriter(updateLog.toFile()));
+        bw.write(Long.toString(timestamp));
+        bw.close();
+
         LOG.info("Available patch bytes: " + delta.available());
         DeltaManifest packageManifest;
         try (ZipInputStream zipStream = new ZipInputStream(delta)) {
@@ -114,7 +196,7 @@ public class Patcher {
                         LOG.warn("File is missing {}", toPatch);
                         continue;
                     }
-                    Path sourcePath = Paths.get(toPatch.toString() + ".old" + System.currentTimeMillis());
+                    Path sourcePath = Paths.get(toPatch.toString() + ".old" + timestamp);
                     Files.move(toPatch, sourcePath);
                     try(InputStream sourceStream = Files.newInputStream(sourcePath);
                         OutputStream patchedOut = Files.newOutputStream(toPatch)) {
@@ -161,19 +243,12 @@ public class Patcher {
                     }
                 }
             }
-            BuildManifest manifest = currentBuild.getManifest();
-            manifest.version = packageManifest.target;
-            manifest.exec = packageManifest.newExec;
-            Files.write(gameDir.resolve("manifest.json"), gson.toJson(manifest).getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
 
             for (String toDeletePath : packageManifest.delete) {
                 Path toDelete = gameDir.resolve(toDeletePath);
                 LOG.info("Deleting {}", toDeletePath);
-                if (Files.isDirectory(toDelete))
-                    FileUtils.deleteRecursive(toDelete);
-                if (Files.exists(toDelete))
-                    Files.delete(toDelete);
-
+                // Save the .old files in case the update is interrupted
+                Files.move(toDelete, Paths.get(toDelete + ".old" + timestamp));
             }
 
             for (String hashAndFile : packageManifest.hashes) {
@@ -196,6 +271,18 @@ public class Patcher {
             throw e;
         }
         updateVisibleCallback.accept(false);
+
+        BuildManifest manifest = currentBuild.getManifest();
+        manifest.version = packageManifest.target;
+        manifest.exec = packageManifest.newExec;
+
+        // These next two lines need to be atomic, but toFile.delete() can't fail, so all OK
+        Files.write(gameDir.resolve("manifest.json"), gson.toJson(manifest).getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
+        updateLog.toFile().delete();
+
+        updateStatusCallback.accept("Cleaning up...");
+        clearOldFiles(gameDir.toFile());
+        updateStatusCallback.accept("Update complete. " + new Version(packageManifest.target) + " ready to play!");
     }
 
     private static byte[] readEntryBuffer = new byte[1024];

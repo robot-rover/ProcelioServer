@@ -40,6 +40,7 @@ import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -112,6 +113,11 @@ public class ProcelioLauncher extends Application {
         launch(args);
     }
 
+    private void loadPaths() {
+        gameDir = Paths.get(settings.installDir);
+
+        readmeFile = gameDir.resolve("README.txt");
+    }
     @Override
     public void init() {
         settingsFile = Paths.get(appDirs.getUserConfigDir("procelioLauncher", "data", "proculStudios", false)).resolve("config.json");
@@ -127,9 +133,7 @@ public class ProcelioLauncher extends Application {
             settings.acceptedReadme = false;
         if(settings.installDir == null)
             settings.installDir = defaultGameDir;
-        gameDir = Paths.get(settings.installDir);
-
-        readmeFile = gameDir.resolve("README.txt");
+        loadPaths();
 
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -147,12 +151,11 @@ public class ProcelioLauncher extends Application {
 
         Font.loadFont(ClassLoader.getSystemResource("ShareTech-Regular.ttf").toExternalForm(), -1);
         LOG.info("Current Module: {}", this.getClass().getModule());
-
     }
 
     @Override
     public void start(Stage primaryStage) {
-
+        LOG.info("Starting window");
         wrapper = new EndpointWrapper();
 
         try {
@@ -189,8 +192,8 @@ public class ProcelioLauncher extends Application {
         primaryStage.setHeight(height);
         primaryStage.setMaxHeight(540);
 
-        primaryStage.setTitle("Procelio Launcher v" + launcherVersion);
-        primaryStage.getIcons().add(new Image(ClassLoader.getSystemResourceAsStream("icon.png")));
+        primaryStage.setTitle("A garbage old version of the Procelio Launcher v" + launcherVersion);
+        primaryStage.getIcons().add(ImageResources.load("icon.png"));
         primaryStage.heightProperty().addListener((observable, oldValue, newValue) -> height = newValue.intValue());
         primaryStage.widthProperty().addListener(((observable, oldValue, newValue) -> width = newValue.intValue()));
         BorderPane contentRoot = new BorderPane();
@@ -219,7 +222,7 @@ public class ProcelioLauncher extends Application {
         dropShadow.setOffsetX(3.0);
         dropShadow.setOffsetY(3.0);
 
-        ImageView logo = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("banner_scaled.png")));
+        ImageView logo = new ImageView(ImageResources.load("banner_scaled.png"));
         logo.setSmooth(true);
         logo.setEffect(dropShadow);
         logo.setPreserveRatio(true);
@@ -237,7 +240,7 @@ public class ProcelioLauncher extends Application {
         double logoWidth = 30;
         double logoHeight = 30;
 
-        ImageView youtube = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("youtube_logo_small.png")));
+        ImageView youtube = new ImageView(ImageResources.load("youtube_logo_small.png"));
         youtube.setPreserveRatio(true);
         youtube.setId("social");
         youtube.setOnMouseClicked(v -> openBrowser("https://www.youtube.com/channel/UCb9SlKVDpFMb3_BkcTNv8SQ"));
@@ -245,23 +248,23 @@ public class ProcelioLauncher extends Application {
         youtube.setFitHeight(logoHeight);
         socialBar.getChildren().add(youtube);
 
-        ImageView twitter = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("twitter_logo_small.png")));
+        ImageView twitter = new ImageView(ImageResources.load("twitter_logo_small.png"));
         twitter.setPreserveRatio(true);
         twitter.setId("social");
-        twitter.setOnMouseClicked(v -> openBrowser("https://twitter.com/proceliogame?lang=en"));
+        twitter.setOnMouseClicked(this::openAutoUpdate);//v -> openBrowser("https://twitter.com/proceliogame?lang=en"));
         twitter.setFitWidth(logoWidth);
         twitter.setFitHeight(logoHeight);
         socialBar.getChildren().add(twitter);
 
-        ImageView discord = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("discord_logo_small.png")));
+        ImageView discord = new ImageView(ImageResources.load("discord_logo_small.png"));
         discord.setPreserveRatio(true);
         discord.setId("social");
-        discord.setOnMouseClicked(v -> openBrowser("https://discord.gg/sKmA3QV"));
+        discord.setOnMouseClicked(v -> openBrowser("https://discord.gg/TDWKZzf"));
         discord.setFitWidth(logoWidth);
         discord.setFitHeight(logoHeight);
         socialBar.getChildren().add(discord);
 
-        ImageView settings = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("gear_logo_small.png")));
+        ImageView settings = new ImageView(ImageResources.load("gear_logo_small.png"));
         settings.setPreserveRatio(true);
         settings.setId("social");
         settings.setOnMouseClicked(this::openSettings);
@@ -348,7 +351,7 @@ public class ProcelioLauncher extends Application {
         launchButton.setPadding(new Insets(15, 45, 15, 45));
         launchButtonHolder.getChildren().add(launchButton);
 
-        ImageView windowBackground = new ImageView(new Image(ClassLoader.getSystemResourceAsStream("background.png")));
+        ImageView windowBackground = new ImageView(ImageResources.load("background.png"));
         windowBackground.setPreserveRatio(true);
         StackPane root = new StackPane(windowBackground, contentRoot);
         root.setAlignment(Pos.CENTER);
@@ -368,17 +371,26 @@ public class ProcelioLauncher extends Application {
         System.out.println("CLICK!");
         Stage settingsStage = new Stage();
         settingsStage.setMaxHeight(480);
+        settingsStage.setHeight(400);
         settingsStage.setMaxWidth(640);
-        settingsStage.setScene(new Scene(new ConfigEditor(settings, settingsStage::close)));
+        settingsStage.setScene(new Scene(new ConfigEditor(settings, () -> {this.loadPaths(); settingsStage.close();})));
         settingsStage.show();
     }
 
+    private void openAutoUpdate(MouseEvent event) {
+        Stage settingsStage = new Stage();
+        settingsStage.setMaxHeight(480);
+        settingsStage.setHeight(400);
+        settingsStage.setMaxWidth(640);
+        settingsStage.setScene(new Scene(new AutoUpdateScript(wrapper, this::updateProgressVisible, this::updateProgressStatus, settingsStage::close)));
+        settingsStage.show();
+    }
 
     public static void debugNode(Node node) {
         node.setStyle("-fx-border-color: black");
     }
 
-    public void warnUserNoConnection() {
+    private void warnUserNoConnection() {
         FX.dialog("Connection Error", "Unable to communicate with Procelio Servers", Alert.AlertType.WARNING);
     }
 
@@ -404,8 +416,16 @@ public class ProcelioLauncher extends Application {
         }
     }
 
+    private void launchClick(MouseEvent me) {
+        openSettings(null);
+    }
+
     //Listener for click on Launch Button
     private void launchButtonClick(ActionEvent e) {
+        if (!settings.configured) {
+            openSettings(null);
+            return;
+        }
         if (updateService.getState().equals(Worker.State.RUNNING) || updateService.getState().equals(Worker.State.SCHEDULED)) {
             LOG.warn("Unable to start updateService. Current State: {}", updateService.getState());
         } else {
@@ -421,6 +441,11 @@ public class ProcelioLauncher extends Application {
             FX.dialog("Launcher Out of Date", "You need to download a new version of the launcher!", Alert.AlertType.WARNING);
             return;
         }
+
+        if (!settings.configured) { // Don't set up the game before first init
+            return;
+        }
+
         try {
             Files.createDirectories(gameDir);
         } catch (IOException e) {
@@ -454,12 +479,13 @@ public class ProcelioLauncher extends Application {
             manifest = patcher.updateBuild();
         } catch (IOException e) {
             LOG.warn("Unable to connect to server");
+            return;
         } catch (HashMismatchException e) {
-            FX.dialog("Hash Mismatch", "Downloaded build but the file was corrupted", Alert.AlertType.ERROR);
+            FX.dialog("Hash Mismatch", "Downloaded build but the file was corrupted.\n If error persists, reinstall game", Alert.AlertType.ERROR);
             LOG.warn("Hash Mismatch", e);
+            return;
         }
 
-        // even if patch failed, still run the game
         launchFile(gameDir.resolve(manifest.getManifest().exec));
     }
 
@@ -496,8 +522,10 @@ public class ProcelioLauncher extends Application {
                 }
             } catch (IOException e) {
                 LOG.warn("Cannot read readmeFile", e);
+                return;
             }
         }
+
         boolean isReadable = executable.toFile().setReadable(true);
         boolean isExecutable = executable.toFile().setExecutable(true, false);
         LOG.info("Launching Procelio from {} - R:{}, X:{}", executable, isReadable, isExecutable);
@@ -523,7 +551,7 @@ public class ProcelioLauncher extends Application {
         }
         try {
             game.waitFor();
-            LOG.info("Procelio Output ->\n", new String(game.getInputStream().readAllBytes()));
+            LOG.info("Procelio Output ->" + new String(game.getInputStream().readAllBytes()) + "\n");
         } catch (InterruptedException e) {
             LOG.warn("Un-Iconify started early", e);
         } catch (IOException e) {
