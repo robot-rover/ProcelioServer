@@ -192,7 +192,7 @@ public class ProcelioLauncher extends Application {
         primaryStage.setHeight(height);
         primaryStage.setMaxHeight(540);
 
-        primaryStage.setTitle("A Procelio Launcher v" + launcherVersion);
+        primaryStage.setTitle("A garbage old version of the Procelio Launcher v" + launcherVersion);
         primaryStage.getIcons().add(ImageResources.load("icon.png"));
         primaryStage.heightProperty().addListener((observable, oldValue, newValue) -> height = newValue.intValue());
         primaryStage.widthProperty().addListener(((observable, oldValue, newValue) -> width = newValue.intValue()));

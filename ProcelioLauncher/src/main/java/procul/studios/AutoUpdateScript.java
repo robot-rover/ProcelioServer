@@ -5,7 +5,9 @@ import io.sigpipe.jbsdiff.Patch;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.*;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import org.apache.commons.compress.compressors.CompressorException;
 import org.slf4j.Logger;
@@ -15,15 +17,15 @@ import procul.studios.delta.BuildManifest;
 import procul.studios.delta.DeltaManifest;
 import procul.studios.util.*;
 
+import java.awt.*;
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
@@ -90,105 +92,60 @@ public class AutoUpdateScript extends RowEditor {
         try (ZipInputStream zipStream = new ZipInputStream(zip)) {
             ZipEntry entry = zipStream.getNextEntry();
             while (entry != null) {
+                if (entry.isDirectory()) {
+                    entry = zipStream.getNextEntry();
+                    continue;
+                }
+
                 String entryName = entry.getName();
-                entryName = entryName.replace("\\", Matcher.quoteReplacement(File.pathSeparator));
-                Path p = Path.of(entry.getName());
-
+                Path p = Path.of(entryName);
+                Path savePos = fold.resolve(p);
+                Files.createDirectories(savePos.getParent());
+                File f = savePos.toFile();
+                FileOutputStream fos = new FileOutputStream(f, false);
+                byte[] data = new byte[1024];
+                int len = 0;
+                while ((len = zipStream.read(data)) > 0) {
+                    fos.write(data, 0, len);
+                }
+                fos.close();
                 entry = zipStream.getNextEntry();
-
-                Path newpath = fold.
             }
-
-
-
-                 /*    while ((entry = zipStream.getNextEntry()) != null) {
-                   String fileName = entry.getName();
-                   if (fileName == null) {
-                       LOG.warn("Null Entry Name");
-                       continue;
-                   }
-                   if (FileUtils.getFileExtension(fileName).equals("patch")) {
-                       String newFileName = fileName.substring(0, fileName.length() - ".patch".length());
-                       Path toPatch = gameDir.resolve(newFileName);
-                       if (!Files.exists(toPatch)) {
-                           LOG.warn("File is missing {}", toPatch);
-                           continue;
-                       }
-                       Path sourcePath = Paths.get(toPatch.toString() + ".old" + timestamp);
-                       Files.move(toPatch, sourcePath);
-                       try(InputStream sourceStream = Files.newInputStream(sourcePath);
-                           OutputStream patchedOut = Files.newOutputStream(toPatch)) {
-                           ByteBufferOutputStream readPatchStream = new ByteBufferOutputStream();
-                           readEntry(zipStream, readPatchStream);
-
-                           ByteArrayInputStream patchStream = new ByteArrayInputStream(readPatchStream.getBuf(), 0 , readPatchStream.getCount());
-                           int blockSize = BytesUtil.readInt(patchStream);
-                           LOG.trace("Patching {}", newFileName);
-                           byte[] buffer = new byte[blockSize];
-                           byte[] patchBlockLengthBuffer = new byte[4];
-                           while (true) {
-                               int isPatchesRemaining = patchStream.read(patchBlockLengthBuffer);
-                               if(isPatchesRemaining < 1)
-                                   break;
-                               int patchBlockLength = BytesUtil.readInt(patchBlockLengthBuffer);
-                               LOG.trace("Patch Length: {}", patchBlockLength);
-                               int sourceBytesRead = sourceStream.read(buffer);
-                               byte[] oldBlockData = Arrays.copyOfRange(buffer, 0, Math.max(sourceBytesRead, 0));
-                               if(patchBlockLength == -1) {
-                                   patchedOut.write(oldBlockData);
-                                   LOG.trace("Writing block from source");
-                               } else {
-                                   byte[] patchBlockData = new byte[patchBlockLength];
-                                   patchStream.read(patchBlockData);
-                                   Patch.patch(oldBlockData, patchBlockData, patchedOut);
-                               }
-                           }
-
-
-                           if (Files.size(toPatch) == 0) {
-                               LOG.warn("File {} is now 0 bytes long: {}", toPatch, fileName);
-                           }
-                       } catch (InvalidHeaderException | CompressorException e) {
-                           LOG.error("Patch Error", e);
-                       }
-                   } else {
-                       Path newFile = gameDir.resolve(fileName);
-                       Files.createDirectories(newFile.getParent());
-                       if (entry.isDirectory())
-                           continue;
-                       try (OutputStream out = Files.newOutputStream(newFile)) {
-                           readEntry(zipStream, out);
-                       }
-                   }
-               }
-
-               for (String toDeletePath : packageManifest.delete) {
-                   Path toDelete = gameDir.resolve(toDeletePath);
-                   LOG.info("Deleting {}", toDeletePath);
-                   // Save the .old files in case the update is interrupted
-                   Files.move(toDelete, Paths.get(toDelete + ".old" + timestamp));
-               }
-
-               for (String hashAndFile : packageManifest.hashes) {
-                   String hash = hashAndFile.substring(0, 32);
-                   String file = hashAndFile.substring(33);
-                   MessageDigest hasher = Hashing.getMessageDigest();
-                   if (hasher == null) return;
-                   try (DigestInputStream digest = new DigestInputStream(Files.newInputStream(gameDir.resolve(file)), hasher)) {
-                       while (digest.read(readEntryBuffer) != -1) {}
-                   }
-                   String fileHash = Hashing.printHexBinary(hasher.digest());
-                   if (!hash.equals(fileHash)) {
-                       LOG.info("Hashes for file {} do not match. Manifest - {}, File - {}", gameDir.resolve(file), hash, fileHash);
-                   }
-               }
-
-               currentBuild = new Build(gameDir);*/
         } catch (IOException e) {
             msg.accept("Launcher update failed");
+            LOG.error(e.getMessage());
             throw e;
         }
         visible.accept(false);
+        File[] arr = fold.toFile().listFiles();
+        if (arr == null)
+            throw new IOException("wrong folder?");
+        String name = "";
+        for (File f : arr) {
+            if (f.getName().toLowerCase(Locale.ENGLISH).contains("launcherupdate")) {
+                name = f.getName();
+                break;
+            }
+        }
+        if (name.equals(""))
+            throw new IllegalStateException("Updater not found");
+
+        Path update = fold.resolve(name);
+        Path updateDest = Path.of(this.installPath.get()).resolve(name);
+        Files.copy(update, updateDest, StandardCopyOption.REPLACE_EXISTING);
+
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Update launcher");
+        alert.setHeaderText("Close launcher and run " + name);
+
+        javafx.scene.control.Label label = new Label("file located at\n"+updateDest);
+        label.setWrapText(true);
+        alert.getDialogPane().setContent(label);
+        ButtonType buttonTypeOne = new ButtonType("OK");
+        alert.getButtonTypes().setAll(buttonTypeOne);
+        Optional<ButtonType> result = alert.showAndWait();
+        Desktop.getDesktop().open(updateDest.getParent().toFile());
+        System.exit(0);
     }
 
 }
