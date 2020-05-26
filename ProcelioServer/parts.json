@@ -1,11 +1,31 @@
 {
   "allParts": [
     {
-      "partId": 1,
+      "partID": 1,
       "cost": 50
     },
     {
-      "partId": 2,
+      "partID": 2,
+      "cost": 200
+    },
+    {
+      "partID": 3,
+      "cost": 200
+    },
+    {
+      "partID": 4,
+      "cost": 200
+    },
+    {
+      "partID": 5,
+      "cost": 200
+    },
+    {
+      "partID": 6,
+      "cost": 200
+    },
+    {
+      "partID": 7,
       "cost": 200
     }
   ],
@@ -13,5 +33,5 @@
   "startingRobots": [
     "robot.bin"
   ],
-  "startingCurrency": 5000
+  "startingCurrency": 500
 }

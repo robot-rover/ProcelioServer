@@ -1,6 +1,6 @@
 {
   "websiteUrl": "https://proceliogame.com/",
-  "quoteOfTheDay": "Here's your shiny launcher. Complain and we go back to .zip files",
+  "quoteOfTheDay": "Here's the launcher. Complain and it's back to .zips",
   "quoteAuthor": "Brenn",
   "launcherArguments": [
     "-IP",
@@ -9,6 +9,7 @@
     "7778",
     "-client"
   ],
+  "test": 3,
   "updates": [
     {
       "version": [0,7,1],
@@ -33,18 +34,20 @@
       "title": "Bigger Bots",
       "hyperlink": "https://proceliogame.com/changelogs/088"
     },
-    {
-      "version": [0,8,9],
+	{
+		"version": [0,8,9],
       "description": " NEW\n    - Garage model\n    - Improvements to audio settings\n    - Backend prep for 1x2 chassis parts\n    - Press F11 to toggle fullscreen\n    - Re-enabled Jingle Shower song\n  CHANGED\n    - Much improved hoverblade physics\n    - Improved wheel physics\n    - parts now glow christmas colors\n    - Tweaks to drive map\n    - Changed friction\n    - Increased starting part amount\n  NOTABLE FIXES\n    - launcher netcode issue\n    - wheels breaking multiplayer",
       "title": "Tis the Season",
       "hyperlink": "https://proceliogame.com/changelogs/089"
-    },
-    {
+	},
+   {
      "version": [0,9,3],
-     "description": "Bugfixes and optimizations\n See website for details",
-     "title": "Actually Decent Netcode",
+     "description": "Fixes and optimizations\nSkis\nSee website for details",
+     "title": "Better Netcode Initiative",
      "hyperlink": "https://proceliogame.com/changelogs/093"
-    }
+
+   }
+
   ],
   "launcherVersion": [0,0,4]
 }
