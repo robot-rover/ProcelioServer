@@ -425,6 +425,8 @@ public class ClientEndpoints {
         if(auth == null || auth.username == null || auth.password == null){
             return ex("Authentication Parameters are null", 400);
         }
+        if (auth.noexpire == null)
+            auth.noexpire = false;
         Record2<String, Integer> databaseHash = context.select(USERTABLE.PASSWORDHASH, USERTABLE.ID).from(USERTABLE).where(USERTABLE.USERNAME.eq(auth.username)).fetchAny();
         if (databaseHash == null || databaseHash.component1() == null) {
             return ex("Username or password is incorrect", 401);
@@ -437,7 +439,7 @@ public class ClientEndpoints {
             String ip = req.headers("CF-Connecting-IP");
             if(ip == null)
                 ip = req.ip();
-            long expires = auth.noexpire ? Instant.now().plus(5000, ChronoUnit.DAYS).getEpochSecond() : Instant.now().plus(1, ChronoUnit.DAYS).getEpochSecond();
+            long expires = (auth.noexpire) ? Instant.now().plus(5000, ChronoUnit.DAYS).getEpochSecond() : Instant.now().plus(1, ChronoUnit.DAYS).getEpochSecond();
             context.deleteFrom(AUTHTABLE).where(AUTHTABLE.USERID.eq(id)).execute();
             context.insertInto(AUTHTABLE).set(AUTHTABLE.USERID, databaseHash.component2()).set(AUTHTABLE.CLIENTIP, ip).set(AUTHTABLE.EXPIRES, expires).set(AUTHTABLE.TOKEN, token).execute();
             context.update(USERTABLE).set(USERTABLE.LASTLOGIN, Instant.now().getEpochSecond()).where(USERTABLE.ID.eq(id)).execute();
