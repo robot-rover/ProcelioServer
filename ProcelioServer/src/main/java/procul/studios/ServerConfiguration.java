@@ -24,6 +24,7 @@ public class ServerConfiguration extends Configuration {
     public String serverKeyB64;
     public String partConfigPath;
     public String buildFolderPath;
+    public String launcherBuildsPath;
     //In Seconds
     public int timeout;
     /*transient public PartConfiguration partConfig;
@@ -48,6 +49,7 @@ public class ServerConfiguration extends Configuration {
         partConfigPath = "";
         launcherConfigPath = "";
         statFileSource = "";
+        launcherBuildsPath = "";
     }
 
     public String getKeystorePass(){

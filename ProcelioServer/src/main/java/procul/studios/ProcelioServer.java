@@ -41,6 +41,7 @@ public class ProcelioServer {
             }
             launcherWrapper = new LauncherEndpoints(config);
         }
+        LauncherBuilds.createLauncherBuilds(Paths.get(config.launcherBuildsPath));
 
         serverStatus = new Server[config.serverLocation.length];
         if (config.serverKeepAlive)

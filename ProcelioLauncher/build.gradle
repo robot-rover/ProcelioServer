@@ -152,7 +152,8 @@ task makeExe(dependsOn: unzipPackager) {
 				'--input', 'build/resources',
 				'--runtime-image', jlink.imageDir.get(),
                 '--dest', 'jpckg',
-				'--module', project.ext.mainClassName
+				'--module', project.ext.mainClassName,
+				'--icon', project.ext.icon
             ]
         }
     }
@@ -161,7 +162,6 @@ task makeExe(dependsOn: unzipPackager) {
 run {
     inputs.property("moduleName", moduleName)
     doFirst {
-        println "ABC " + mainClassName
         jvmArgs = [
                 '--module-path', classpath.asPath,
                 '--module', mainClassName

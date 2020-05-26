@@ -32,6 +32,7 @@ import java.util.regex.Matcher;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import static procul.studios.ProcelioLauncher.backendEndpoint;
 import static procul.studios.gson.GsonSerialize.gson;
 
 public class AutoUpdateScript extends RowEditor {
@@ -49,6 +50,8 @@ public class AutoUpdateScript extends RowEditor {
         this.closeWindow = closeWindow;
         this.visible = visibleCallback;
         this.msg = messageCallback;
+        addTextRow("Launcher out of date!");
+        addTextRow("Select the root folder of the launcher application:");
         installPath = addDirectoryRow("Launcher Directory", new File(".").getAbsolutePath());
 
         HBox buttons = new HBox();
@@ -72,9 +75,11 @@ public class AutoUpdateScript extends RowEditor {
 
     private void execute() {
         try {
-            InputStream s = new FileInputStream("C:\\Users\\Brennan\\source\\repos\\C++Testbunker\\Release\\TestLaunch\\download.zip");
+            InputStream s = wrapper.getFile(backendEndpoint + "/launcher/launcher");
             execute(s);
-        } catch (IOException e) {
+        } catch (Exception e) {
+            for (StackTraceElement ste : e.getStackTrace())
+                LOG.error(ste.toString());
             LOG.error(e.getMessage());
         }
     }
@@ -113,7 +118,7 @@ public class AutoUpdateScript extends RowEditor {
             }
         } catch (IOException e) {
             msg.accept("Launcher update failed");
-            LOG.error(e.getMessage());
+            LOG.error("A: " + e.getMessage());
             throw e;
         }
         visible.accept(false);

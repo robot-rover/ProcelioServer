@@ -1,5 +1,6 @@
 #include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <set>
 #include <string>
@@ -18,7 +19,7 @@ bool isSubDir(const fs::path& path, fs::path subpath);
 
 // Find all current files inside of 'directoryRoot' that aren't this or unzip; store paths in the set
 void findCurrentFiles(std::set<fs::path>& currentFiles, fs::path dir);
-void findCurrentFiles(std::set<fs:path>& currentFiles);
+void findCurrentFiles(std::set<fs::path>& currentFiles);
 
 // Replace all files with their corresponding file in unzipPath. Removes all matched files from set
 bool updateFiles(std::set<fs::path>& currentFiles);
@@ -26,37 +27,61 @@ bool updateFiles(std::set<fs::path>& currentFiles);
 // Clears all files in the given set -- files which didn't have an equivalent in the new version
 void clearFiles(std::set<fs::path>& remainingFiles);
 
+struct {
+	fs::path launcher;
+
+	void setup(std::ifstream config) {
+		launcher = executablePath;
+		launcher.replace_filename("ProcelioLauncher.exe");
+		if (config.is_open()) {
+			std::string launch;
+			std::getline(config, launch);
+			if (launch != "") {
+				launcher.remove_filename();
+				launcher = launcher.append(launch);
+			}
+		}
+	}
+} configuration;
 
 int main(int argc, char** argv) {
 	if (argc < 2) {
 		char* arr[] = { argv[0], "_download" };
 		argv = arr;
 	}
+
+
 	std::string path = argv[0];
 
 	executablePath = fs::canonical(argv[0]);
 	directoryRoot = executablePath.parent_path();
 	unzipPath = executablePath;
 	unzipPath.replace_filename(argv[1]);
+	fs::path config = executablePath;
+	config.replace_filename("config.txt");
+	configuration.setup(std::ifstream(config));
 
-	std::set<fs::path> paths;
-	std::cout << "Indexing files..." << std::endl;
-	findCurrentFiles(paths);
 
-	std::cout << "Copying new launcher files" << std::endl;
-	updateFiles(paths);
 
-	std::cout << "Clearing old files" << std::endl;
-	clearFiles(paths);
-	fs::path launcher = executablePath;
-	launcher.replace_filename("ProcelioLauncher.exe");
+	if (fs::exists(unzipPath)) {
+		std::set<fs::path> paths;
+		std::cout << "Indexing files..." << std::endl;
+		findCurrentFiles(paths);
 
-	std::cout << "Deleting temp files" << std::endl;
-	fs::remove_all(unzipPath);
+		std::cout << "Copying new launcher files" << std::endl;
+		updateFiles(paths);
 
-	std::cout << "Restarting launcher" << std::endl;
-	std::string launcherpath = launcher.generic_string();
-	system(launcherpath.c_str());
+		std::cout << "Clearing old files" << std::endl;
+		clearFiles(paths);
+
+		std::cout << "Deleting temp files" << std::endl;
+		fs::remove_all(unzipPath);
+	}
+
+	std::cout << "Restarting launcher: " << configuration.launcher << std::endl;
+	fs::permissions(configuration.launcher, fs::perms::all);
+	system(configuration.launcher.string().c_str());
+
 	return 0;
 }
 

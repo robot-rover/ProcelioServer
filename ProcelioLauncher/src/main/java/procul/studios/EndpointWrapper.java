@@ -134,7 +134,7 @@ public class EndpointWrapper {
                 buff.flush();
             }
             LOG.info("Server: {} -> Client: {}", serverHash, clientHash);
-            if(serverHash.equals(clientHash))
+            if(serverHash == null || serverHash.equals(clientHash))
                 return new BufferedInputStream(new FileInputStream(tempFile));
         }
         throw new HashMismatchException(path);

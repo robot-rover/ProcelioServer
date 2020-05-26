@@ -63,8 +63,8 @@ public class InstallationModifier extends RowEditor {
         }
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Delete Procelio Game Install?");
-        alert.setHeaderText("Do you want to delete data?");
+        alert.setTitle("Delete Procelio?");
+        alert.setHeaderText("Do you want to delete the Procelio installation?");
         alert.setContentText("All files in "+path+" will be cleared");
 
         Label label = new Label("Will delete all data in\n"+path);

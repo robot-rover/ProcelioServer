@@ -65,7 +65,7 @@ public class ProcelioLauncher extends Application {
     /**
      * Constant determines the version of the launcher build
      */
-    private static final Version launcherVersion = new Version(0, 0, 4);
+    private static final Version launcherVersion = new Version(0, 0, 3);
 
     /**
      * Constant determines the endpoint for the Procelio Backend
@@ -167,9 +167,11 @@ public class ProcelioLauncher extends Application {
         // Launcher Version Check
         try {
             Version newestLauncher = new Version(wrapper.getConfig().launcherVersion);
+            LOG.info("Launcher Versions - Current: {}, Latest: {}", launcherVersion, newestLauncher);
             launcherOutOfDate = newestLauncher.compareTo(launcherVersion) > 0;
             if (launcherOutOfDate) {
                 LOG.warn("Launcher is out of date - Current: {}, Latest: {}", launcherVersion, newestLauncher);
+                this.openAutoUpdate(null);
             }
         } catch (IOException e) {
             LOG.warn("Cannot connect to server");
@@ -192,7 +194,7 @@ public class ProcelioLauncher extends Application {
         primaryStage.setHeight(height);
         primaryStage.setMaxHeight(540);
 
-        primaryStage.setTitle("A garbage old version of the Procelio Launcher v" + launcherVersion);
+        primaryStage.setTitle("Procelio Launcher v" + launcherVersion);
         primaryStage.getIcons().add(ImageResources.load("icon.png"));
         primaryStage.heightProperty().addListener((observable, oldValue, newValue) -> height = newValue.intValue());
         primaryStage.widthProperty().addListener(((observable, oldValue, newValue) -> width = newValue.intValue()));
@@ -251,7 +253,7 @@ public class ProcelioLauncher extends Application {
         ImageView twitter = new ImageView(ImageResources.load("twitter_logo_small.png"));
         twitter.setPreserveRatio(true);
         twitter.setId("social");
-        twitter.setOnMouseClicked(this::openAutoUpdate);//v -> openBrowser("https://twitter.com/proceliogame?lang=en"));
+        twitter.setOnMouseClicked(v -> openBrowser("https://twitter.com/proceliogame?lang=en"));
         twitter.setFitWidth(logoWidth);
         twitter.setFitHeight(logoHeight);
         socialBar.getChildren().add(twitter);

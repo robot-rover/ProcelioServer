@@ -79,9 +79,11 @@ public class SparkServer {
             get("/launcher/args", launcher::getArgs);
             get("/launcher", launcher::getPatchList);
             get("/launcher/build", launcher::fullBuild);
+            get("/launcher/launcher", launcher::getLauncherBuild);
             get("/launcher/:patch", launcher::getPatchList);
             get("/launcher/patch/:patch", launcher::getPatch);
             get("/launcher/buildFile/:build/*", launcher::getBuildFile);
+
         }
 
 

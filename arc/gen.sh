@@ -32,4 +32,4 @@ echo "Generating Database"
 ./schemaBackup.txt
 chmod +x schemaBackup.txt
 echo "Running Jooq"
-java -classpath jooq-3.10.1.jar:jooq-meta-3.10.1.jar:jooq-codegen-3.10.1.jar:sqlite-jdbc-3.21.0.jar:jaxb-main-all.jar:. org.jooq.util.GenerationTool /library.xml
+java -classpath javax.activation-1.1.0.v201005080500.jar:jaxb-api-2.3.0.jar:jaxb-core-2.3.0.jar:jaxb-impl-2.3.0.jar:jooq-3.10.1.jar:jooq-meta-3.10.1.jar:jooq-codegen-3.10.1.jar:sqlite-jdbc-3.20.0.jar:jaxb-main-all.jar:. org.jooq.util.GenerationTool /library.xml
