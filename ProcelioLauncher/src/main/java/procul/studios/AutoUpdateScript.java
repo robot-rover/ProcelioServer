@@ -45,6 +45,7 @@ public class AutoUpdateScript extends RowEditor {
     Application ap;
     public AutoUpdateScript(Application app, EndpointWrapper wrapper, Consumer<Boolean> visibleCallback, Consumer<String> messageCallback, Runnable closeWindow) {
         ap = app;
+        LOG.info(""+wrapper.osHeaderValue);
         switch (wrapper.osHeaderValue) {
             case WINDOWS:
                 // Go through elevation layer. Ugh.
@@ -211,6 +212,8 @@ class AutoUpdate  {
             instPat = fold.getParent();
             LOG.info("E -> " + instPat.toString());
         }
+        LOG.info("FOLD: " + fold);
+        LOG.info("INST: " + instPat);
 
         if (fold.toFile().exists()) {
             LauncherUtilities.deleteRecursive(fold.toFile());

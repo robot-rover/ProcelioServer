@@ -7,8 +7,9 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#ifdef _WIN32
 #include "Windows.h"
-
+#endif
 #include "constants.h"
 namespace fs = std::filesystem;
 
@@ -39,12 +40,12 @@ struct {
 
 	void setup() {
 		launcher = executablePath;
-		launcher.replace_filename("ProcelioLauncher.exe");
+		launcher.replace_filename(LAUNCHER_NAME);
 	}
 } configuration;
 
 void mainfunc(char* argv0) {
-	executablePath = fs::current_path().append("LauncherUpdater.exe");// fs::canonical(argv[0]);
+	executablePath = fs::current_path().append(UPDATER_NAME);// fs::canonical(argv[0]);
 	directoryRoot = executablePath.parent_path();
 	unzipPath = executablePath;
 	unzipPath.replace_filename(DOWNLOAD_FOLDER);
@@ -72,6 +73,7 @@ void mainfunc(char* argv0) {
 }
 
 int winmain(int argc, char** argv) {
+#ifdef _WIN32
 	mainfunc(argv[0]);
 	std::wstring pt = configuration.launcher.wstring();
 
@@ -84,6 +86,7 @@ int winmain(int argc, char** argv) {
 		CloseHandle(processInfo.hThread);
 		return 0;
 	}
+#endif
 	return 1;
 }
 
@@ -91,6 +94,12 @@ int lnxmain(int argc, char** argv) {
 	mainfunc(argv[0]);
 	return system(("\"" + configuration.launcher.string() + "\"").c_str());
 }
+
+#ifdef __linux__
+int main(int argc, char** argv) {
+	return lnxmain(argc, argv);
+}
+#endif
 
 
 bool isSubDir(const fs::path& path, fs::path subpath) {

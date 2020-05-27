@@ -10,4 +10,7 @@ WINDOWS
 2) Run Inno to generate the ProcelioLauncherInstaller.exe in WinInstaller
 
 LINUX
-- ???
+- Run gradle makeImage
+- Copy in updater and constants files to folder
+- Copy in launch.sh file to top level
+- Build updater and constants files to Linux "LauncherUpdater" file
