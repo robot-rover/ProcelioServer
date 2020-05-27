@@ -31,7 +31,7 @@ public class EndpointWrapper {
     private static final Logger LOG = LoggerFactory.getLogger(EndpointWrapper.class);
     LauncherConfiguration config;
     String osHeaderKey = "X-Operating-System";
-    OperatingSystem osHeaderValue = OperatingSystem.get();
+    public OperatingSystem osHeaderValue = OperatingSystem.get();
 
     public String[] getLaunchArgs() throws IOException {
         HttpResponse<String> response = null;

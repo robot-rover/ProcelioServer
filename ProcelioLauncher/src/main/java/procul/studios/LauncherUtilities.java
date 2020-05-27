@@ -2,6 +2,7 @@ package procul.studios;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import procul.studios.util.OperatingSystem;
 
 import java.io.File;
 import java.util.regex.Pattern;
@@ -41,5 +42,12 @@ public class LauncherUtilities {
         }
         if (dir.toPath().toString().matches(regex))
            dir.delete();
+    }
+
+    public static String fixSeparators(String path, EndpointWrapper wrap) {
+        if (wrap.osHeaderValue == OperatingSystem.WINDOWS) {
+            return path.replace("\\", "/");
+        }
+        return path;
     }
 }

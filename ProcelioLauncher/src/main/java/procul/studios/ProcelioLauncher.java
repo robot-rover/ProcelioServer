@@ -65,7 +65,7 @@ public class ProcelioLauncher extends Application {
     /**
      * Constant determines the version of the launcher build
      */
-    private static final Version launcherVersion = new Version(0, 0, 3);
+    private static final Version launcherVersion = new Version(0, 1, 0);
 
     /**
      * Constant determines the endpoint for the Procelio Backend
@@ -109,7 +109,17 @@ public class ProcelioLauncher extends Application {
     int width;
     int height;
 
+    static boolean download = false;
+    static String downloadPath;
     public static void main(String[] args) {
+        for (int i = 0; i < args.length; ++i) {
+            if (args[i].equals("-download") && i < args.length - 1) {
+                download = true;
+                downloadPath = args[i+1];
+            }
+            LOG.info("ARG: " + args[i]);
+        }
+
         launch(args);
     }
 
@@ -134,7 +144,13 @@ public class ProcelioLauncher extends Application {
         if(settings.installDir == null)
             settings.installDir = defaultGameDir;
         loadPaths();
+        wrapper = new EndpointWrapper();
 
+
+        if (download) {
+            new AutoUpdate(wrapper);
+            System.exit(0);
+        }
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
@@ -156,7 +172,6 @@ public class ProcelioLauncher extends Application {
     @Override
     public void start(Stage primaryStage) {
         LOG.info("Starting window");
-        wrapper = new EndpointWrapper();
 
         try {
             patcher = new Patcher(gameDir, wrapper, this::updateProgressVisible, this::updateProgressBar, this::updateProgressStatus);
@@ -171,7 +186,6 @@ public class ProcelioLauncher extends Application {
             launcherOutOfDate = newestLauncher.compareTo(launcherVersion) > 0;
             if (launcherOutOfDate) {
                 LOG.warn("Launcher is out of date - Current: {}, Latest: {}", launcherVersion, newestLauncher);
-                this.openAutoUpdate(null);
             }
         } catch (IOException e) {
             LOG.warn("Cannot connect to server");
@@ -384,7 +398,7 @@ public class ProcelioLauncher extends Application {
         settingsStage.setMaxHeight(480);
         settingsStage.setHeight(400);
         settingsStage.setMaxWidth(640);
-        settingsStage.setScene(new Scene(new AutoUpdateScript(wrapper, this::updateProgressVisible, this::updateProgressStatus, settingsStage::close)));
+        settingsStage.setScene(new Scene(new AutoUpdateScript(this, wrapper, this::updateProgressVisible, this::updateProgressStatus, settingsStage::close)));
         settingsStage.show();
     }
 
@@ -426,6 +440,10 @@ public class ProcelioLauncher extends Application {
     private void launchButtonClick(ActionEvent e) {
         if (!settings.configured) {
             openSettings(null);
+            return;
+        }
+        if (launcherOutOfDate) {
+            openAutoUpdate(null);
             return;
         }
         if (updateService.getState().equals(Worker.State.RUNNING) || updateService.getState().equals(Worker.State.SCHEDULED)) {

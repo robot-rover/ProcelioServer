@@ -1,0 +1,13 @@
+- Use Inno Setup to create launcher
+
+WINDOWS
+- The two elevated programs (download, update) are built from the same VS project with minor code modifications
+--> Need the "run elevated" manifest that IDK how to do without VS.
+- Build those progams and copy them into a Windows build of createImage
+- AFTER building/copying them:
+1) Make a zip of the files in jpckg/ProcelioLauncher (NOT the folder. All the files in it)
+--> This is the "upload to server / standalone" build
+2) Run Inno to generate the ProcelioLauncherInstaller.exe in WinInstaller
+
+LINUX
+- ???

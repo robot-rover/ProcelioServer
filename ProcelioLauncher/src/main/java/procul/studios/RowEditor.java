@@ -20,9 +20,9 @@ import java.util.function.Supplier;
 
 public class RowEditor extends BorderPane {
     GridPane grid;
-
+    ScrollPane scroll;
     public RowEditor() {
-        ScrollPane scroll = new ScrollPane();
+        scroll = new ScrollPane();
         scroll.setFitToWidth(true);
         this.setCenter(scroll);
         grid = new GridPane();
@@ -35,6 +35,10 @@ public class RowEditor extends BorderPane {
         grid.getColumnConstraints().add(names);
         grid.getColumnConstraints().add(values);
         scroll.setContent(grid);
+    }
+
+    public void resetGrid() {
+        grid.getChildren().clear();
     }
 
     /**
