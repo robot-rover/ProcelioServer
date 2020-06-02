@@ -45,6 +45,9 @@ public class StatFile extends Configuration {
         @TypeId(6)
         public Integer rotationSpeed;
 
+        @TypeId(7)
+        public Integer damage;
+
         public StatFileBinary.Block export() {
             List<StatFileBinary.Flag> flagList = new ArrayList<>();
             for(Field field : Block.class.getDeclaredFields()) {

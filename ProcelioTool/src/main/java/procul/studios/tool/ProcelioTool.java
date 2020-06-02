@@ -5,10 +5,10 @@ import com.google.gson.JsonSyntaxException;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-import procul.studios.pojo.StatFile;
 import procul.studios.pojo.StatFileBinary;
 import procul.studios.tool.command.*;
 import procul.studios.util.BytesUtil;
+import procul.studios.gson.StatFile;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

@@ -7,7 +7,7 @@ import picocli.CommandLine.Parameters;
 import procul.studios.pojo.Inventory;
 import procul.studios.pojo.PartTuple;
 import procul.studios.pojo.Robot;
-import procul.studios.pojo.StatFile;
+import procul.studios.gson.*;
 import procul.studios.tool.ToolVersion;
 
 import java.io.BufferedOutputStream;

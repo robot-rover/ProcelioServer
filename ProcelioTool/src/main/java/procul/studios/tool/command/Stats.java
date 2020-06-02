@@ -5,7 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
-import procul.studios.pojo.StatFile;
+import procul.studios.gson.StatFile;
 import procul.studios.pojo.StatFileBinary;
 import procul.studios.tool.ToolVersion;
 import procul.studios.util.BytesUtil;
