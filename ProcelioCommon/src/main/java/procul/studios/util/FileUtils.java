@@ -1,14 +1,12 @@
 package procul.studios.util;
 
-import java.io.BufferedOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -16,11 +14,31 @@ public final class FileUtils {
     private FileUtils() { }
 
     public static void deleteRecursive(Path dir) throws IOException {
-        for(Path f : Files.newDirectoryStream(dir)){
+        var str = Files.newDirectoryStream(dir);
+        for(Path f : str){
             if(Files.isDirectory(f))
                 deleteRecursive(f);
             Files.delete(f);
         }
+        str.close();
+    }
+
+    // Return true iff delete succssful
+    public static boolean deleteRecursive(File f, Set<File> blacklist) {
+        if (!f.exists() || blacklist.contains(f))
+            return true;
+        if (!f.isDirectory()) {
+            return f.delete();
+        }
+        File[] arr = f.listFiles();
+        if (arr == null || arr.length == 0)
+            return true;
+        for (File f2 : arr) {
+            f2.setWritable(true);
+            if (!deleteRecursive(f2, blacklist))
+                return false;
+        }
+        return true;
     }
 
 

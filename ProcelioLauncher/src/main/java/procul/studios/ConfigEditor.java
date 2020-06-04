@@ -1,34 +1,28 @@
 package procul.studios;
 
 import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextField;
-import javafx.scene.image.ImageView;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
-import javafx.scene.text.Text;
-import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.File;
+import java.io.IOException;
 import java.util.function.Supplier;
 
 public class ConfigEditor extends RowEditor {
+    private static final Logger LOG = LoggerFactory.getLogger(ConfigEditor.class);
     private final LauncherSettings settings;
     private Runnable closeWindow;
     Supplier<String> installDir;
-
-    public ConfigEditor(LauncherSettings settings, Runnable closeWindow) {
+    ProcelioLauncher launcher;
+    public ConfigEditor(ProcelioLauncher launcher, LauncherSettings settings, Runnable closeWindow) {
         this.settings = settings;
         this.closeWindow = closeWindow;
+        this.launcher = launcher;
 
         installDir = addDirectoryRow("Install Directory", settings.installDir);
         addButtonRow("Modify Install", "Change the installed game (e.g. uninstall)", this::modifyInstall);
@@ -57,6 +51,13 @@ public class ConfigEditor extends RowEditor {
         settings.configured = true;
         settings.installDir = installDir.get();
         System.out.println(installDir.get());
+        launcher.settings = settings;
+        try {
+            launcher.saveSettings();
+            launcher.loadPaths();
+        } catch (IOException e) {
+            FX.dialog("Couldn't save", "Unable to save settings", Alert.AlertType.ERROR);
+        }
         closeWindow.run();
     }
 

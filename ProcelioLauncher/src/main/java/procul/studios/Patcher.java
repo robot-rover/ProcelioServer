@@ -18,6 +18,7 @@ import java.security.MessageDigest;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -34,7 +35,7 @@ public class Patcher {
     Consumer<Boolean> updateVisibleCallback;
     Consumer<Double> updateProgressCallback;
     Consumer<String> updateStatusCallback;
-    Path gameDir;
+    public Path gameDir;
 
     public Patcher(Path gameDir, EndpointWrapper wrapper, Consumer<Boolean> updateVisibleCallback, Consumer<Double> updateProgressCallback, Consumer<String> updateStatusCallback) throws IOException {
         this.wrapper = wrapper;
@@ -294,11 +295,15 @@ public class Patcher {
     }
 
     public Build freshBuild() throws IOException, HashMismatchException {
+
         LOG.info("Making fresh build");
         if (!Files.exists(gameDir))
             Files.createDirectory(gameDir);
-        else
-            FileUtils.deleteRecursive(gameDir);
+        else {
+            HashSet<File> exclude = new HashSet<>();
+            exclude.add(gameDir.resolve("launcher.log").toFile());
+            FileUtils.deleteRecursive(gameDir.toFile(), exclude);
+        }
         updateVisibleCallback.accept(true);
         updateStatusCallback.accept("Downloading Build /launcher/build");
         InputStream hashes = null;

@@ -79,7 +79,6 @@ public class ClientEndpoints {
     }
 
     public String getStatFileChecksum(Request req, Response res) {
-        int id = authenticate(req, res);
         return gson.toJson(new Message(statFileChecksum));
     }
 

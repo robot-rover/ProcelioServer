@@ -65,7 +65,7 @@ public class ProcelioLauncher extends Application {
     /**
      * Constant determines the version of the launcher build
      */
-    private static final Version launcherVersion = new Version(0, 1, 0);
+    private static final Version launcherVersion = new Version(0, 1, 1);
 
     /**
      * Constant determines the endpoint for the Procelio Backend
@@ -92,7 +92,7 @@ public class ProcelioLauncher extends Application {
 
     private static Path settingsFile;
 
-    private LauncherSettings settings;
+    public LauncherSettings settings;
 
     // Set by the launcher version check
     private boolean launcherOutOfDate = false;
@@ -123,9 +123,10 @@ public class ProcelioLauncher extends Application {
         launch(args);
     }
 
-    private void loadPaths() {
+    public void loadPaths() {
         gameDir = Paths.get(settings.installDir);
-
+        if (patcher != null)
+            patcher.gameDir = gameDir;
         readmeFile = gameDir.resolve("README.txt");
     }
     @Override
@@ -155,9 +156,7 @@ public class ProcelioLauncher extends Application {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 settings.windowSize = new int[]{width, height};
-                String json = gson.toJson(settings);
-                Files.createDirectories(settingsFile.getParent());
-                Files.write(settingsFile, json.getBytes(StandardCharsets.UTF_8), StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
+                saveSettings();
                 LOG.info("Settings Saved");
             } catch (IOException e) {
                 LOG.warn("Unable to Save Launcher Settings", e);
@@ -169,6 +168,12 @@ public class ProcelioLauncher extends Application {
         LOG.info("Current Module: {}", this.getClass().getModule());
     }
 
+    public void saveSettings() throws IOException {
+        String json = gson.toJson(settings);
+        Files.createDirectories(settingsFile.getParent());
+        Files.write(settingsFile, json.getBytes(StandardCharsets.UTF_8), StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
+
+    }
     @Override
     public void start(Stage primaryStage) {
         LOG.info("Starting window");
@@ -389,7 +394,7 @@ public class ProcelioLauncher extends Application {
         settingsStage.setMaxHeight(480);
         settingsStage.setHeight(400);
         settingsStage.setMaxWidth(640);
-        settingsStage.setScene(new Scene(new ConfigEditor(settings, () -> {this.loadPaths(); settingsStage.close();})));
+        settingsStage.setScene(new Scene(new ConfigEditor(this, settings, () -> {this.loadPaths(); settingsStage.close();})));
         settingsStage.show();
     }
 
@@ -465,7 +470,7 @@ public class ProcelioLauncher extends Application {
         if (!settings.configured) { // Don't set up the game before first init
             return;
         }
-
+        LOG.info("Installing game to " + gameDir);
         try {
             Files.createDirectories(gameDir);
         } catch (IOException e) {

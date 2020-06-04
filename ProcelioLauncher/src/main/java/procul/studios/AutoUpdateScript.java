@@ -1,7 +1,5 @@
 package procul.studios;
 
-import io.sigpipe.jbsdiff.InvalidHeaderException;
-import io.sigpipe.jbsdiff.Patch;
 import javafx.application.Application;
 import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
@@ -10,33 +8,22 @@ import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
-import org.apache.commons.compress.compressors.CompressorException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import procul.studios.delta.Build;
-import procul.studios.delta.BuildManifest;
-import procul.studios.delta.DeltaManifest;
-import procul.studios.util.*;
 
 import java.awt.*;
-import java.awt.event.MouseEvent;
 import java.io.*;
 import java.nio.file.*;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
-import java.util.ArrayList;
-import java.util.Arrays;
+
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import static procul.studios.ProcelioLauncher.backendEndpoint;
-import static procul.studios.gson.GsonSerialize.gson;
 
 public class AutoUpdateScript extends RowEditor {
     private static final Logger LOG = LoggerFactory.getLogger(AutoUpdateScript.class);

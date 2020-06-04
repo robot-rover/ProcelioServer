@@ -99,39 +99,7 @@ task unzipPackager(dependsOn: downloadPackager, type: Copy) {
     into buildDir.path + '/jpackager/'
 }
 
-task jPackager(dependsOn: unzipPackager) {
-    dependsOn project.tasks.getByName("jlink")
-    def outputDir = buildDir.path + "/image/package"
-    outputs.dir outputDir
-    def binary = unzipPackager.destinationDir.path + "/jpackager"
-	logger.warn(binary);
-    def nativeType
-    if(OperatingSystem.current().isWindows()) {
-        nativeType = 'msi'
-    } else if(OperatingSystem.current().isLinux()) {
-        nativeType = 'deb'
-    } else {
-        throw new GradleException('Unsupported Operating System')
-    }
-
-    doLast {
-        exec {
-            executable binary
-            args = [
-                    'create-installer', nativeType,
-                    '--runtime-image', jlink.imageDir.get(),
-                    '--verbose',
-                    '--output', outputDir,
-                    '--name', project.ext.appName,
-                    '-m', project.ext.mainClassName,
-                    '--version', project.version,
-                    '--icon', project.ext.icon
-            ]
-        }
-    }
-}
-
-task makeImage(dependsOn: unzipPackager) {
+task makeImage() {
     dependsOn project.tasks.getByName("jlink")
     def outputDir = buildDir.path + "/image/package"
     outputs.dir outputDir
