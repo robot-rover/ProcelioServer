@@ -37,8 +37,10 @@ public class LauncherUtilities {
     public static void deleteMatchingRecursive(File dir, String regex) {
         if (dir.isDirectory()) {
             File[] arr = dir.listFiles();
-            for (int i = 0; i < arr.length; ++i)
-                deleteMatchingRecursive(arr[i], regex);
+            if (arr == null)
+                return;
+            for (File file : arr)
+                deleteMatchingRecursive(file, regex);
         }
         if (dir.toPath().toString().matches(regex))
            dir.delete();

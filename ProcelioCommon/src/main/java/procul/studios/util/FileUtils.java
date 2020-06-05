@@ -7,16 +7,18 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public final class FileUtils {
-    private FileUtils() { }
+    private FileUtils() {
+    }
 
     public static void deleteRecursive(Path dir) throws IOException {
         var str = Files.newDirectoryStream(dir);
-        for(Path f : str){
-            if(Files.isDirectory(f))
+        for (Path f : str) {
+            if (Files.isDirectory(f))
                 deleteRecursive(f);
             Files.delete(f);
         }
@@ -49,16 +51,26 @@ public final class FileUtils {
         int p = Math.max(fileName.lastIndexOf('/'), fileName.lastIndexOf('\\'));
 
         if (i > p) {
-            extension = fileName.substring(i+1);
+            extension = fileName.substring(i + 1);
         }
         return extension;
     }
 
     public static void extractInputstream(InputStream stream, Path targetDir) throws IOException {
+        extractInputstream(stream, targetDir, null);
+    }
+
+    public static void extractInputstream(InputStream stream, Path targetDir, Consumer<Double> scrollingProgress) throws IOException {
         byte[] buffer = new byte[1024];
+        double perFile = 0.01;
+        double stat = 0;
         try (ZipInputStream zipStream = new ZipInputStream(stream)) {
             ZipEntry entry = null;
             while ((entry = zipStream.getNextEntry()) != null) {
+                stat += perFile;
+                if (stat > 1) stat = 0;
+                if (scrollingProgress != null)
+                    scrollingProgress.accept(stat);
                 String fileName = entry.getName();
                 Path newFile = targetDir.resolve(fileName);
                 Files.createDirectories(newFile.getParent());
@@ -79,6 +91,7 @@ public final class FileUtils {
     static class CopyFileVisitor extends SimpleFileVisitor<Path> {
         private final Path targetPath;
         private Path sourcePath = null;
+
         public CopyFileVisitor(Path targetPath) {
             this.targetPath = targetPath;
         }
@@ -106,13 +119,13 @@ public final class FileUtils {
 
     public static String getSize(Path file) throws IOException {
         long length = Files.size(file);
-        if(length < 1024)
+        if (length < 1024)
             return length + " b";
         length /= 1024;
-        if(length < 1024)
+        if (length < 1024)
             return length + " kb";
         length /= 1024;
-        if(length < 1024)
+        if (length < 1024)
             return length + " mb";
         length /= 1024;
         return length + " gb";
