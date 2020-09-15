@@ -167,6 +167,7 @@ LOG.info("Getting...");
 
                     buff.write(data, 0, x);
                 }
+                LOG.info("download done");
                 serverHash = getFileHash(path);
                 clientHash = Hashing.printHexBinary(sha512.digest());
                 buff.flush();

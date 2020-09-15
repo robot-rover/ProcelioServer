@@ -39,14 +39,13 @@ import procul.studios.util.Version;
 
 import java.awt.*;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -67,7 +66,7 @@ public class ProcelioLauncher extends Application {
     /**
      * Constant determines the version of the launcher build
      */
-    private static final Version launcherVersion = new Version(0, 2, 0);
+    private static final Version launcherVersion = new Version(0, 2, 1);
 
     /**
      * Constant determines the endpoint for the Procelio Backend
@@ -151,6 +150,20 @@ public class ProcelioLauncher extends Application {
 
         loadPaths();
         wrapper = new EndpointWrapper();
+
+        if (download) {
+            try {
+                downloadPath = LauncherUtilities.fixSeparators(downloadPath, wrapper);
+                LOG.info("Unwrapping to " + downloadPath);
+                InputStream is = wrapper.getFile(backendEndpoint + "/launcher/build");
+                if (downloadPath.endsWith("/"+AutoUpdate.downloadFolder))
+                    downloadPath = downloadPath.substring(0, downloadPath.length() - AutoUpdate.downloadFolder.length() - 1 /* '/' */);
+                AutoUpdate.DoUpdate(downloadPath, is, wrapper, null);
+            } catch (IOException | HashMismatchException e) {
+                e.printStackTrace();
+            }
+            System.exit(0);
+        }
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {

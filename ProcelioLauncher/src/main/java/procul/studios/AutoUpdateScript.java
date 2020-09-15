@@ -1,13 +1,20 @@
 package procul.studios;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.concurrent.Task;
+import javafx.concurrent.WorkerStateEvent;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
+import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,7 +24,10 @@ import java.nio.file.*;
 
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.zip.ZipEntry;
@@ -30,9 +40,10 @@ public class AutoUpdateScript extends RowEditor {
 
     AutoUpdate au;
     Application ap;
+
     public AutoUpdateScript(Application app, EndpointWrapper wrapper, Consumer<Boolean> visibleCallback, Consumer<String> messageCallback, Runnable closeWindow) {
         ap = app;
-        LOG.info(""+wrapper.osHeaderValue);
+        LOG.info("" + wrapper.osHeaderValue);
         switch (wrapper.osHeaderValue) {
             case WINDOWS:
                 // Go through elevation layer. Ugh.
@@ -66,32 +77,99 @@ public class AutoUpdateScript extends RowEditor {
         cancel.addEventHandler(ActionEvent.ACTION, event -> closeWindow.run());
         buttons.getChildren().add(cancel);
     }
-
     private void ready() {
-        String name = au.ready();
-        LOG.info("updated " + name);
-        Path updateDest = Path.of(LauncherUtilities.fixSeparators(au.installPath.get(), au.wrapper)).resolve(name);
-        LOG.info("ne file: "+updateDest.toString());
+        ts = new Task<>() {
+            @Override
+            protected String call() throws Exception {
+                return au.ready();
+            }
+        };
+        alertUpdate = new Task() {
 
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Update launcher");
-        alert.setHeaderText("Close launcher and run " + name);
+            @Override
+            protected Object call() throws Exception {
+                while (true) {
+                    if (isCancelled())
+                        return null;
+                    Thread.sleep(500);
 
-        javafx.scene.control.Label label = new Label("file located at\n"+updateDest);
-        label.setWrapText(true);
-        alert.getDialogPane().setContent(label);
+                }
+            }
+        };
+        updatingStatus = new Alert(Alert.AlertType.INFORMATION);
+        updatingStatus.setTitle("Update launcher");
+        updatingStatus.setHeaderText("Downloading ");
+        ts.setOnSucceeded(this::done);
+        new Thread(ts).start();
+        Timeline dotDitter = new Timeline(new KeyFrame(Duration.seconds(.5), new EventHandler<ActionEvent>()
+        {
+            int numDots = 0;
 
-        ButtonType buttonTypeOne = new ButtonType("OK");
-        alert.getButtonTypes().setAll(buttonTypeOne);
-        Optional<ButtonType> result = alert.showAndWait();
-        try {
-            Desktop.getDesktop().open(updateDest.getParent().toFile());
-        } catch (IOException e) { e.printStackTrace(); }
-        try {
-            ap.stop();
-        } catch (Exception e) {}
-        System.exit(0);
+            @Override
+            public void handle(ActionEvent event)
+            {
+                char spinner = '|';
+                switch (numDots % 4) {
+                    case 1:
+                        spinner = '/';
+                        break;
+                    case 2:
+                        spinner = '-';
+                        break;
+                    case 3:
+                        spinner = '\\';
+                        break;
+                }
+                ++numDots;
+                if (numDots > 8)
+                    numDots %= 8;
+                updatingStatus.setHeaderText("Downloading" + ".".repeat(numDots)+ " ".repeat(8-numDots) + "        " + (numDots > 3 ? " " : "") + spinner);
+            }
+        }));
+
+        updatingStatus.getButtonTypes().clear();
+        dotDitter.setCycleCount(Timeline.INDEFINITE);
+        dotDitter.play();
+        updatingStatus.showAndWait();
     }
+
+    private void done(WorkerStateEvent workerStateEvent) {
+        alertUpdate.cancel();
+        Platform.runLater(() -> {
+            updatingStatus.close();
+            String name = null;
+            try {
+                name = ts.get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Update launcher");
+            alert.setHeaderText("Close launcher and run " + name);
+            Path updateDest = Path.of(LauncherUtilities.fixSeparators(au.installPath.get(), au.wrapper)).resolve(name);
+            javafx.scene.control.Label label = new Label("file located at\n" + updateDest);
+            label.setWrapText(true);
+            alert.getDialogPane().setContent(label);
+            ButtonType buttonTypeOne = new ButtonType("OK");
+            alert.getButtonTypes().setAll(buttonTypeOne);
+            Optional<ButtonType> result = alert.showAndWait();
+            try {
+                Desktop.getDesktop().open(updateDest.getParent().toFile());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            try {
+                ap.stop();
+            } catch (Exception e) {
+            }
+            System.exit(0);
+        });
+    }
+
+    Task<String> ts;
+    Task alertUpdate;
+
+    private Alert updatingStatus;
 }
 
 class AutoUpdateWindows extends AutoUpdate {
@@ -106,18 +184,25 @@ class AutoUpdateWindows extends AutoUpdate {
 
     public String ready() {
         try {
+            Path path = Path.of(LauncherUtilities.fixSeparators(this.installPath.get(), wrapper)).resolve("_231232_TestFile_jldfnf");
+            Files.createFile(path);
+            Files.delete(path);
+            return super.ready();
+        } catch (IOException e) {
+            // Couldn't create... Guess we need admin
+        }
+
+        try {
             String pp = Path.of(LauncherUtilities.fixSeparators(this.installPath.get(), wrapper)).resolve("RunLaunchUpdate.exe").toString();
             LOG.info(pp);
-            String[] args = new String[] {"cmd.exe", "/C", pp};
+            String[] args = new String[]{"cmd.exe", "/C", pp};
             Process process = new ProcessBuilder(args)
                     .redirectError(ProcessBuilder.Redirect.DISCARD)
                     .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
 
             LOG.info("Process is running!");
             int tick = 0;
-            while (!process.waitFor(300, TimeUnit.MILLISECONDS)) {
-                updateGrid(tick++);
-            }
+            process.waitFor();
             LOG.info("concluded");
             Path p = Path.of(LauncherUtilities.fixSeparators(this.installPath.get(), wrapper)).resolve(downloadFolder);
             File[] arr = p.toFile().listFiles();
@@ -140,61 +225,17 @@ class AutoUpdateWindows extends AutoUpdate {
     }
 }
 
-class AutoUpdate  {
-   protected static final String downloadFolder = "_download";
-   protected static final Logger LOG = LoggerFactory.getLogger(AutoUpdateScript.class);
+class AutoUpdate {
+    public static final String downloadFolder = "_download";
+    protected static final Logger LOG = LoggerFactory.getLogger(AutoUpdateScript.class);
 
-    EndpointWrapper wrapper;
-    Consumer<Boolean> visible;
-    Consumer<String> msg;
-    Runnable closeWindow;
-    Supplier<String> installPath;
-
-    public AutoUpdate(EndpointWrapper wrapper, Consumer<Boolean> visibleCallback, Consumer<String> messageCallback, Runnable closeWindow) {
-        this.wrapper = wrapper;
-        this.closeWindow = closeWindow;
-        this.visible = visibleCallback;
-        this.msg = messageCallback;
-
-    }
-
-    public AutoUpdate(EndpointWrapper wrapper) {
-        this.wrapper = wrapper;
-        this.visible = null;
-        this.msg = null;
-        this.closeWindow = null;
-        this.installPath = null;
-        execute();
-    }
-
-    public String execute() {
-        try {
-            if (visible != null) {
-                visible.accept(true);
-                msg.accept("downloading new launcher...");
-            }
-            InputStream s = wrapper.getFile(backendEndpoint + "/launcher/launcher");
-            return execute(s);
-        } catch (Exception e) {
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-            e.printStackTrace(pw);
-            LOG.error(sw.toString());
-        }
-        return "";
-    }
-
-    public String execute(InputStream zip) throws IOException {
-        if (closeWindow != null)
-            closeWindow.run();
-
+    public static String DoUpdate(String installPath, InputStream zip, EndpointWrapper wrapper, Consumer<String> msg) throws IOException {
         Path instPat = null;
         Path fold = null;
         if (installPath != null) {
-            fold = Path.of(LauncherUtilities.fixSeparators(this.installPath.get(), wrapper)).resolve(downloadFolder);
-            instPat = Path.of(LauncherUtilities.fixSeparators(this.installPath.get(), wrapper));
-        }
-        else {
+            fold = Path.of(LauncherUtilities.fixSeparators(installPath, wrapper)).resolve(downloadFolder);
+            instPat = Path.of(LauncherUtilities.fixSeparators(installPath, wrapper));
+        } else {
             fold = Path.of(LauncherUtilities.fixSeparators(ProcelioLauncher.downloadPath, wrapper));
             instPat = fold.getParent();
             LOG.info("E -> " + instPat.toString());
@@ -254,12 +295,44 @@ class AutoUpdate  {
         return name;
     }
 
-    public void updateGrid(int ticks) {
-//        resetGrid();
-        int numDots = ticks % 5;
-        String s = ".".repeat(numDots);
-  //      this.addTextRow("Starting update process" + s);
-    //    this.addTextRow("(this may take a little while)");
+    EndpointWrapper wrapper;
+    Consumer<Boolean> visible;
+    Consumer<String> msg;
+    Runnable closeWindow;
+    Supplier<String> installPath;
+
+    public AutoUpdate(EndpointWrapper wrapper, Consumer<Boolean> visibleCallback, Consumer<String> messageCallback, Runnable closeWindow) {
+        this.wrapper = wrapper;
+        this.closeWindow = closeWindow;
+        this.visible = visibleCallback;
+        this.msg = messageCallback;
+
+    }
+
+    public AutoUpdate(EndpointWrapper wrapper) {
+        this.wrapper = wrapper;
+        this.visible = null;
+        this.msg = null;
+        this.closeWindow = null;
+        this.installPath = null;
+        execute();
+    }
+
+    public String execute() {
+        try {
+            InputStream s = wrapper.getFile(backendEndpoint + "/launcher/build");
+            return execute(s);
+        } catch (Exception e) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+            LOG.error(sw.toString());
+        }
+        return "";
+    }
+
+    public String execute(InputStream zip) throws IOException {
+        return DoUpdate(installPath.get(), zip, this.wrapper, this.msg);
     }
 
     public String ready() {
