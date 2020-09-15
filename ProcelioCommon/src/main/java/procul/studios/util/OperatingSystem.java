@@ -6,7 +6,7 @@ public enum OperatingSystem {
     UNKNOWN(),
     WINDOWS("win"),
     MACINTOSH("mac"),
-    LINUX("nix", "nux", "aix");
+    LINUX("lnx", "nix", "nux", "aix");
 
     public String[] terms;
 
@@ -32,7 +32,17 @@ public enum OperatingSystem {
         return currentOS == null ? (currentOS = parse(System.getProperty("os.name").toLowerCase(Locale.ENGLISH))) : currentOS;
     }
     
-    public String getIndex(){
-        return String.valueOf(this.ordinal());
+    public String getHeaderValue(){
+       switch (this) {
+           case WINDOWS:
+               return "windows";
+           case LINUX:
+               return "linux";
+           case UNKNOWN:
+               return "unknown";
+           case MACINTOSH:
+               return "mac";
+        }
+        return "";
     }
 }

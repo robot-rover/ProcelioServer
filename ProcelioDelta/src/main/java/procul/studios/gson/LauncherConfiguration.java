@@ -16,6 +16,7 @@ public class LauncherConfiguration extends Configuration {
     public static class Update {
         public String title;
         public Integer[] version;
+        public boolean dev;
         public String description;
         public String hyperlink;
         public String image;

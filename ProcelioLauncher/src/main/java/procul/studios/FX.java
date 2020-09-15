@@ -68,7 +68,6 @@ public class FX {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle(title);
         alert.setContentText(content);
-
         //Fix for Linux text cutoff
         alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
 
@@ -92,22 +91,16 @@ public class FX {
             }
             return Optional.ofNullable(result[0]);
         }
+
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle(title);
-        VBox alertRoot = new VBox();
-        alert.getDialogPane().setContent(alertRoot);
-        alert.getDialogPane().setMaxWidth(600);
 
-        ScrollPane scrollPane = new ScrollPane();
-        scrollPane.setFitToWidth(true);
-        alertRoot.getChildren().add(scrollPane);
+        TextArea area = new TextArea(content);
+        area.setWrapText(true);
+        area.setEditable(false);
 
-        Label alertText = new Label(scroll);
-        alertText.setWrapText(true);
-        scrollPane.setContent(alertText);
-
-        Label notScroll = new Label(content);
-        alertRoot.getChildren().add(notScroll);
+        alert.getDialogPane().setContent(area);
+        alert.setResizable(true);
 
         //Fix for Linux text cutoff
         //alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);

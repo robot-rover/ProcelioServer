@@ -10,6 +10,7 @@ import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.*;
 import java.io.IOException;
 import java.util.function.Supplier;
 
@@ -19,6 +20,7 @@ public class ConfigEditor extends RowEditor {
     private Runnable closeWindow;
     Supplier<String> installDir;
     ProcelioLauncher launcher;
+    boolean useDevBuilds;
     public ConfigEditor(ProcelioLauncher launcher, LauncherSettings settings, Runnable closeWindow) {
         this.settings = settings;
         this.closeWindow = closeWindow;
@@ -26,6 +28,8 @@ public class ConfigEditor extends RowEditor {
 
         installDir = addDirectoryRow("Install Directory", settings.installDir);
         addButtonRow("Modify Install", "Change the installed game (e.g. uninstall)", this::modifyInstall);
+        addCheckboxRow(settings.useDevBuilds, "Opt in to dev builds", this::checkboxSet);
+        addButtonRow("Legal Info", "Copyright stuff", this::licenses);
 
         HBox buttons = new HBox();
         buttons.setAlignment(Pos.BASELINE_RIGHT);
@@ -47,9 +51,19 @@ public class ConfigEditor extends RowEditor {
 
     }
 
+    private void licenses(ActionEvent ae) {
+        Stage window = new Stage();
+        window.setMaxHeight(800);
+        window.setHeight(600);
+        window.setMaxWidth(640);
+        window.setScene(new Scene(new LicenseDisplayScene(window::close)));
+        window.show();
+    }
+
     private void commitChanges() {
         settings.configured = true;
         settings.installDir = installDir.get();
+        settings.useDevBuilds = this.useDevBuilds;
         System.out.println(installDir.get());
         launcher.settings = settings;
         try {
@@ -59,6 +73,10 @@ public class ConfigEditor extends RowEditor {
             FX.dialog("Couldn't save", "Unable to save settings", Alert.AlertType.ERROR);
         }
         closeWindow.run();
+    }
+
+    private void checkboxSet(ActionEvent ae) {
+        this.useDevBuilds = ((CheckBox)ae.getSource()).isSelected();
     }
 
     private void modifyInstall(ActionEvent ae) {

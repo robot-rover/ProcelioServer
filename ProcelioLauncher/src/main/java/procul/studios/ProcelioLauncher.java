@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.delta.Build;
 import procul.studios.gson.LauncherConfiguration;
+import procul.studios.util.GameVersion;
 import procul.studios.util.HashMismatchException;
 import procul.studios.util.Tuple;
 import procul.studios.util.Version;
@@ -49,6 +50,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 
 import static procul.studios.gson.GsonSerialize.gson;
 
@@ -65,7 +67,7 @@ public class ProcelioLauncher extends Application {
     /**
      * Constant determines the version of the launcher build
      */
-    private static final Version launcherVersion = new Version(0, 1, 1);
+    private static final Version launcherVersion = new Version(0, 2, 0);
 
     /**
      * Constant determines the endpoint for the Procelio Backend
@@ -76,7 +78,7 @@ public class ProcelioLauncher extends Application {
         if(debugEndpoint) {
             backendEndpoint = "http://127.0.0.1";
         } else {
-            backendEndpoint = "https://www.sovietbot.xyz:8443";
+            backendEndpoint = "https://files.procelio.com:8677";
         }
     }
     // Used for callbacks updating progress of a download or patch
@@ -87,6 +89,7 @@ public class ProcelioLauncher extends Application {
      */
     static Path gameDir;
     static final String defaultGameDir = System.getProperty("user.home") + File.separator + ".ProcelioGame";
+    static boolean devBuilds = false;
 
     private static Path readmeFile;
 
@@ -135,23 +138,19 @@ public class ProcelioLauncher extends Application {
         LOG.info("Settings File: {}", settingsFile);
         try {
             settings = gson.fromJson(Files.newBufferedReader(settingsFile), LauncherSettings.class);
-        } catch (JsonParseException | IOException e) {
+        } catch (Exception e) {
             LOG.warn("Unable to load Launcher Setting", e);
         }
+
         if(settings == null)
             settings = new LauncherSettings();
         if(settings.acceptedReadme == null)
             settings.acceptedReadme = false;
         if(settings.installDir == null)
             settings.installDir = defaultGameDir;
+
         loadPaths();
         wrapper = new EndpointWrapper();
-
-
-        if (download) {
-            new AutoUpdate(wrapper);
-            System.exit(0);
-        }
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
@@ -179,7 +178,7 @@ public class ProcelioLauncher extends Application {
         LOG.info("Starting window");
 
         try {
-            patcher = new Patcher(gameDir, wrapper, this::updateProgressVisible, this::updateProgressBar, this::updateProgressStatus);
+            patcher = new Patcher(settings, gameDir, wrapper, this::updateProgressVisible, this::updateProgressBar, this::updateProgressStatus);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -451,6 +450,7 @@ public class ProcelioLauncher extends Application {
             openAutoUpdate(null);
             return;
         }
+
         if (updateService.getState().equals(Worker.State.RUNNING) || updateService.getState().equals(Worker.State.SCHEDULED)) {
             LOG.warn("Unable to start updateService. Current State: {}", updateService.getState());
         } else {
@@ -485,7 +485,16 @@ public class ProcelioLauncher extends Application {
 
             // if a manifest doesn't exist or isn't valid, download a fresh install of the game and then launch
             if (manifest == null || manifest.getManifest().exec == null || manifest.getManifest().version == null) {
-                manifest = patcher.freshBuild();
+                GameVersion gv = wrapper.getCurrentVersion(devBuilds);
+
+                long newVersionSize = wrapper.getFileSize(backendEndpoint + "/game/build/" + gv.toString());
+                String persistent = "Install will require " + Patcher.formatDataSize(newVersionSize) + " of disk space";
+
+                boolean memoryOK = FX.accept("Storage Use", persistent).orElse(false);
+                if (!memoryOK)
+                    throw new CancellationException();
+                // if no patch path is available, only option is a fresh bui
+                manifest = patcher.freshBuild(devBuilds);
                 launchFile(gameDir.resolve(manifest.getManifest().exec));
                 return;
             }
@@ -496,6 +505,10 @@ public class ProcelioLauncher extends Application {
         } catch (HashMismatchException e) {
             FX.dialog("Hash Mismatch", "Downloaded build but the file was fragmented", Alert.AlertType.ERROR);
             LOG.warn("Hash Mismatch", e);
+            return;
+        } catch (CancellationException e) {
+            FX.dialog("Operation Cancelled", "Download of file was cancelled", Alert.AlertType.ERROR);
+            LOG.warn("Cancelled", e);
             return;
         }
 
@@ -509,6 +522,8 @@ public class ProcelioLauncher extends Application {
             FX.dialog("Hash Mismatch", "Downloaded build but the file was corrupted.\n If error persists, reinstall game", Alert.AlertType.ERROR);
             LOG.warn("Hash Mismatch", e);
             return;
+        } catch (Exception e) {
+            LOG.warn("Broke: ", e);
         }
 
         launchFile(gameDir.resolve(manifest.getManifest().exec));
@@ -565,7 +580,7 @@ public class ProcelioLauncher extends Application {
             LOG.info("Running {} in directory {} - Exists: {}", gameDir.relativize(executable), gameDir, Files.exists(executable));
             List<String> concatArgs = new ArrayList<>();
             concatArgs.add(executable.normalize().toString());
-            concatArgs.addAll(Arrays.asList(wrapper.getLaunchArgs()));
+            concatArgs.addAll(Arrays.asList(wrapper.getLauncherArguments(devBuilds)));
             LOG.info("Launching with args: {}", concatArgs);
             game = new ProcessBuilder(concatArgs).directory(gameDir.toFile()).redirectErrorStream(true).start();
             Platform.runLater(() -> primaryStage.setIconified(true));

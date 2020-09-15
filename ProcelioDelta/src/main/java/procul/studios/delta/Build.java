@@ -2,6 +2,7 @@ package procul.studios.delta;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import procul.studios.util.GameVersion;
 import procul.studios.util.Version;
 
 import java.io.IOException;
@@ -34,7 +35,7 @@ public class Build implements Comparable<Build> {
     }
 
     BuildManifest manifest;
-    Version version;
+    GameVersion version;
 
     @Override
     public String toString() {
@@ -50,9 +51,9 @@ public class Build implements Comparable<Build> {
         this.baseDirectory = directory;
         try {
             manifest = gson.fromJson(Files.newBufferedReader(baseDirectory.resolve("manifest.json")), BuildManifest.class);
-            version = new Version(manifest.version);
-            if(manifest.version == null)
-                throw new IOException("baseDirectory " + baseDirectory + " manifest.json has no version");
+            if(manifest.version == null || manifest.version.length < 3)
+                throw new IOException("baseDirectory " + baseDirectory + " manifest.json has no valid version");
+            version = new GameVersion(manifest.version[0], manifest.version[1], manifest.version[2], manifest.dev);
         } catch (NoSuchFileException e) {
             throw new IOException("baseDirectory " + baseDirectory + " doesn't have a manifest.json", e);
         }
@@ -82,7 +83,7 @@ public class Build implements Comparable<Build> {
         return fileTree;
     }
 
-    public Version getVersion() {
+    public GameVersion getVersion() {
         return version;
     }
 

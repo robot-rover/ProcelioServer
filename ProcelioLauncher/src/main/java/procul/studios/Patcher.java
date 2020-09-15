@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 import procul.studios.delta.Build;
 import procul.studios.delta.BuildManifest;
 import procul.studios.delta.DeltaManifest;
-import procul.studios.pojo.response.LauncherDownload;
+import procul.studios.pojo.response.PatchList;
 import procul.studios.util.*;
 
 import java.io.*;
@@ -17,10 +17,9 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
+import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -37,11 +36,14 @@ public class Patcher {
     Consumer<String> updateStatusCallback;
     public Path gameDir;
 
-    public Patcher(Path gameDir, EndpointWrapper wrapper, Consumer<Boolean> updateVisibleCallback, Consumer<Double> updateProgressCallback, Consumer<String> updateStatusCallback) throws IOException {
+    LauncherSettings settings;
+
+    public Patcher(LauncherSettings settings, Path gameDir, EndpointWrapper wrapper, Consumer<Boolean> updateVisibleCallback, Consumer<Double> updateProgressCallback, Consumer<String> updateStatusCallback) throws IOException {
         this.wrapper = wrapper;
         this.updateVisibleCallback = updateVisibleCallback;
         this.updateProgressCallback = updateProgressCallback;
         this.updateStatusCallback = updateStatusCallback;
+        this.settings = settings;
         this.gameDir = gameDir;
         try {
             currentBuild = new Build(gameDir);
@@ -58,7 +60,7 @@ public class Patcher {
      * @throws HashMismatchException if a file was downloaded twice and was corrupted both times
      */
     public Build updateBuild() throws IOException, HashMismatchException {
-        LauncherDownload gameStatus = wrapper.checkForUpdates(currentBuild.getVersion());
+        PatchList gameStatus = wrapper.checkForUpdates(currentBuild.getVersion(), settings.useDevBuilds);
         // if the versions match, the game is up to date
         if (gameStatus.upToDate) {
             LOG.info("All up to date");
@@ -77,10 +79,27 @@ public class Patcher {
             try { Thread.sleep(1000); } catch (Exception ignored) { /* Purely for visibility */}
         }
 
+        long newVersionSize = wrapper.getFileSize(backendEndpoint + "/game/build/" + gameStatus.update_to.toString());
+        long oldVersionSize = wrapper.getFileSize(backendEndpoint + "/game/build/" + currentBuild.getVersion());
+        String persistent = "After update, install will consume ";
+        if (oldVersionSize == -1)
+            persistent += formatDataSize(newVersionSize);
+        else if (newVersionSize - oldVersionSize > 0)
+            persistent += "an additional " + formatDataSize(newVersionSize-oldVersionSize) ;
+        else
+            persistent += formatDataSize(oldVersionSize - newVersionSize) + " less";
+        persistent += " of disk space";
+        String patchMsg = "Updating process will temporarily require " + formatDataSize((long)(1.5*newVersionSize)) + " of disk space";
+
+        boolean memoryOK = FX.accept("Storage Use", persistent+"\n"+patchMsg).orElse(false);
+        if (!memoryOK)
+            throw new CancellationException();
         // if no patch path is available, only option is a fresh build
-        if (gameStatus.patches == null) {
-            return freshBuild();
+        if (gameStatus.patches == null || gameStatus.patches.length == 0) {
+            return freshBuild(settings.useDevBuilds);
         }
+
+
 
         // All set to patch
         LOG.info("Patching Build");
@@ -88,9 +107,9 @@ public class Patcher {
         try {
             for (String patch : gameStatus.patches) {
                 updateStatusCallback.accept("Downloading Patch " + patch);
-                InputStream input = wrapper.getFile(backendEndpoint + patch, updateProgressCallback);
+                InputStream input = wrapper.getFile(backendEndpoint + "/game/patch/" + patch, updateProgressCallback);
                 if (!applyDelta(input))
-                    return freshBuild();
+                    return freshBuild(settings.useDevBuilds);
             }
         } catch (IOException | HashMismatchException e) {
             updateVisibleCallback.accept(false);
@@ -162,10 +181,6 @@ public class Patcher {
         LauncherUtilities.deleteMatchingRecursive(root, ".*\\.old\\d+$");
     }
 
-
-
-
-
     public boolean applyDelta(InputStream delta) throws IOException {
         long timestamp =  System.currentTimeMillis();
         Path updateLog = gameDir.resolve(updateInfoFile);
@@ -184,12 +199,16 @@ public class Patcher {
             if (packageManifest.delete == null)
                 packageManifest.delete = new ArrayList<>();
             updateVisibleCallback.accept(true);
-            updateStatusCallback.accept("Patching " + new Version(packageManifest.source) + " -> " + new Version(packageManifest.target));
-            LOG.info("Applying patch " + Arrays.toString(packageManifest.source) + " -> " + Arrays.toString(packageManifest.target));
+            updateStatusCallback.accept("Patching " + packageManifest.source + " -> " + packageManifest.target);
+            LOG.info("Applying patch " + packageManifest.source + " -> " + packageManifest.target);
             updateProgressCallback.accept(0.0);
             double offset = 0.01;
             double val = 0;
             while ((entry = zipStream.getNextEntry()) != null) {
+                LOG.info(entry.getName());
+                if (entry.isDirectory()) {
+                    continue;
+                }
                 val += offset; if (val > 1) val = 0;
                 updateProgressCallback.accept(val);
                 String fileName = entry.getName();
@@ -200,6 +219,8 @@ public class Patcher {
                 }
                 if (FileUtils.getFileExtension(fileName).equals("patch")) {
                     String newFileName = fileName.substring(0, fileName.length() - ".patch".length());
+                    if (newFileName.endsWith("."))
+                        newFileName = newFileName.substring(0, newFileName.length() - 1);
                     Path toPatch = gameDir.resolve(newFileName);
                     if (!Files.exists(toPatch)) {
                         LOG.warn("File is missing {}", toPatch);
@@ -208,39 +229,12 @@ public class Patcher {
                     }
                     Path sourcePath = Paths.get(toPatch.toString() + ".old" + timestamp);
                     Files.move(toPatch, sourcePath);
-                    try(InputStream sourceStream = Files.newInputStream(sourcePath);
-                        OutputStream patchedOut = Files.newOutputStream(toPatch)) {
-                        ByteBufferOutputStream readPatchStream = new ByteBufferOutputStream();
-                        readEntry(zipStream, readPatchStream);
+                    byte[] bytes = Files.readAllBytes(sourcePath);
+                    ByteBufferOutputStream readPatchStream = new ByteBufferOutputStream();
+                    readEntry(zipStream, readPatchStream);
 
-                        ByteArrayInputStream patchStream = new ByteArrayInputStream(readPatchStream.getBuf(), 0 , readPatchStream.getCount());
-                        int blockSize = BytesUtil.readInt(patchStream);
-                        LOG.trace("Patching {}", newFileName);
-                        byte[] buffer = new byte[blockSize];
-                        byte[] patchBlockLengthBuffer = new byte[4];
-                        while (true) {
-                            val += offset/20; if (val > 1) val = 0;
-                            int isPatchesRemaining = patchStream.read(patchBlockLengthBuffer);
-                            if(isPatchesRemaining < 1)
-                                break;
-                            int patchBlockLength = BytesUtil.readInt(patchBlockLengthBuffer);
-                            LOG.trace("Patch Length: {}", patchBlockLength);
-                            int sourceBytesRead = sourceStream.read(buffer);
-                            byte[] oldBlockData = Arrays.copyOfRange(buffer, 0, Math.max(sourceBytesRead, 0));
-                            if(patchBlockLength == -1) {
-                                patchedOut.write(oldBlockData);
-                                LOG.trace("Writing block from source");
-                            } else {
-                                byte[] patchBlockData = new byte[patchBlockLength];
-                                patchStream.read(patchBlockData);
-                                Patch.patch(oldBlockData, patchBlockData, patchedOut);
-                            }
-                        }
-
-
-                        if (Files.size(toPatch) == 0) {
-                            LOG.warn("File {} is now 0 bytes long: {}", toPatch, fileName);
-                        }
+                    try {
+                        Patch.patch(bytes, readPatchStream.getBuf(), Files.newOutputStream(toPatch));
                     } catch (InvalidHeaderException | CompressorException e) {
                         ok = false;
                         LOG.error("Patch Error", e);
@@ -255,7 +249,7 @@ public class Patcher {
                     }
                 }
             }
-
+            LOG.info("Patching complete...");
             for (String toDeletePath : packageManifest.delete) {
                 Path toDelete = gameDir.resolve(toDeletePath);
                 LOG.info("Deleting {}", toDeletePath);
@@ -264,15 +258,16 @@ public class Patcher {
             }
 
             for (String hashAndFile : packageManifest.hashes) {
-                String hash = hashAndFile.substring(0, 32);
-                String file = hashAndFile.substring(33);
+                int colon = hashAndFile.indexOf(':');
+                String hash = hashAndFile.substring(0, colon);
+                String file = hashAndFile.substring(colon+1);
                 MessageDigest hasher = Hashing.getMessageDigest();
                 if (hasher == null) return false;
                 try (DigestInputStream digest = new DigestInputStream(Files.newInputStream(gameDir.resolve(file)), hasher)) {
                     while (digest.read(readEntryBuffer) != -1) {}
                 }
                 String fileHash = Hashing.printHexBinary(hasher.digest());
-                if (!hash.equals(fileHash)) {
+                if (!hash.toLowerCase().equals(fileHash.toLowerCase())) {
                     LOG.info("Hashes for file {} do not match. Manifest - {}, File - {}", gameDir.resolve(file), hash, fileHash);
                     ok = false;
                 }
@@ -280,23 +275,25 @@ public class Patcher {
 
             currentBuild = new Build(gameDir);
         }  catch (IOException e) {
+            LOG.info("IO EXception: ", e);
             updateVisibleCallback.accept(false);
             throw e;
         }
 
-
-        BuildManifest manifest = currentBuild.getManifest();
-        manifest.version = packageManifest.target;
+        BuildManifest manifest = new BuildManifest();
+        manifest.version = new Integer[]{ packageManifest.target.major, packageManifest.target.minor, packageManifest.target.patch };
+        manifest.dev = packageManifest.target.dev_build;
         manifest.exec = packageManifest.newExec;
 
         updateProgressCallback.accept(0.0);
         // These next two lines need to be atomic, but toFile.delete() can't fail, so all OK
         Files.write(gameDir.resolve("manifest.json"), gson.toJson(manifest).getBytes(), StandardOpenOption.TRUNCATE_EXISTING);
         updateLog.toFile().delete();
+        currentBuild = new Build(gameDir);
 
         updateStatusCallback.accept("Cleaning up...");
         clearOldFiles(gameDir.toFile());
-        updateStatusCallback.accept("Update complete. " + new Version(packageManifest.target) + " ready to play!");
+        updateStatusCallback.accept("Update complete. " + packageManifest.target + " ready to play!");
         updateProgressCallback.accept(1.0);
 
         return ok;
@@ -310,7 +307,15 @@ public class Patcher {
         }
     }
 
-    public Build freshBuild() throws IOException, HashMismatchException {
+    private void confirmFileSize(long size) {
+        long mb = Math.max(1, size / 1000000);
+        var acc = FX.accept("Operation Confirmation", "This operation may require up to " + mb + "MB of disk sapace");
+        if (!(acc.orElse(false))) {
+            throw new CancellationException();
+        }
+    }
+
+    public Build freshBuild(boolean devBuild) throws IOException, HashMismatchException {
 
         LOG.info("Making fresh build");
         if (!Files.exists(gameDir))
@@ -322,12 +327,17 @@ public class Patcher {
         }
         updateVisibleCallback.accept(true);
         updateStatusCallback.accept("Downloading Build /launcher/build");
-        InputStream hashes = null;
+        InputStream game = null;
         try {
-            hashes = wrapper.getFile(backendEndpoint + "/launcher/build", updateProgressCallback);
+            GameVersion gv = wrapper.getCurrentVersion(devBuild);
+            if (gv ==null)
+                throw new IOException("Failed to get current version");
+
+            long size = wrapper.getFileSize(backendEndpoint + "/game/build/" + gv.toString());
+            game = wrapper.getFile(backendEndpoint + "/game/build/" + gv.toString(), updateProgressCallback);
             updateStatusCallback.accept("Unpacking build");
-            FileUtils.extractInputstream(hashes, gameDir, updateProgressCallback);
-        } catch (IOException | HashMismatchException e) {
+            FileUtils.extractInputstream(game, gameDir, updateProgressCallback);
+        } catch (IOException | HashMismatchException | NullPointerException e) {
             updateVisibleCallback.accept(false);
             throw e;
         }
@@ -339,7 +349,7 @@ public class Patcher {
 
     private static DecimalFormat df = new DecimalFormat("#.##");
 
-    private static String formatDataSize(int bytes) {
+    public static String formatDataSize(long bytes) {
         String[] extensions = {"B", "KB", "MB", "GB", "TB"};
         int extensionIndex = 0;
         double size = bytes;
@@ -347,6 +357,6 @@ public class Patcher {
             size /= 1024;
             extensionIndex++;
         }
-        return df.format(size) + " " + extensions[extensionIndex];
+        return df.format(size)  + extensions[extensionIndex];
     }
 }

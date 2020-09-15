@@ -85,46 +85,16 @@ public class Delta {
             Path targetFile = target.getBaseDirectory().resolve(path);
             Path sourceFile = source.getBaseDirectory().resolve(path);
             Path patchFile = baseDirectory.resolve(path.toString() + ".patch");
+
+            byte[] source = Files.readAllBytes(sourceFile);
+            byte[] target = Files.readAllBytes(targetFile);
             Files.createDirectories(patchFile.getParent());
-            try (InputStream sourceStream = new BufferedInputStream(Files.newInputStream(sourceFile));
-                 DigestInputStream targetStream = new DigestInputStream(new BufferedInputStream(Files.newInputStream(targetFile)), Hashing.getMessageDigest());
-                 OutputStream patchStream = new BufferedOutputStream(Files.newOutputStream(patchFile))) {
-                final int blockSize = 1024*1024;
-                BytesUtil.writeInt(patchStream, blockSize);
-                int size = Math.toIntExact(Math.max(Files.size(targetFile), Files.size(sourceFile)));
-                LOG.debug("Block size: {}, Old File: {}, New File: {}, Total Blocks: {}", size, Files.size(sourceFile), Files.size(targetFile), size/blockSize + 1);
-                byte[] buffer = new byte[blockSize];
-                for (int pos = 0; pos < size; pos += blockSize) {
-                    int blockLength = Math.min(blockSize, size - pos);
-                    LOG.trace("Block {}", pos / blockSize);
-                    ByteBufferOutputStream blockPatchStream = new ByteBufferOutputStream();
-                    int sourceBytesRead = sourceStream.read(buffer);
-                    byte[] sourceBlock = Arrays.copyOfRange(buffer, 0, Math.max(sourceBytesRead, 0));
-                    int targetBytesRead = targetStream.read(buffer);
-                    if(targetBytesRead < 1)
-                        break;
-                    byte[] targetBlock = Arrays.copyOfRange(buffer, 0, Math.max(targetBytesRead, 0));
-                    try {
-                        if(Arrays.equals(sourceBlock, targetBlock)) {
-                            LOG.trace("Block source and target is equal");
-                            BytesUtil.writeInt(patchStream, -1);
-                            continue;
-                        }
-                        Diff.diff(sourceBlock, targetBlock, blockPatchStream, new SaisDiffSettings());
-                        LOG.trace("Block Length: {}, Patch Length: {}", blockLength, blockPatchStream.getCount());
-                        BytesUtil.writeInt(patchStream, blockPatchStream.getCount());
-                        patchStream.write(blockPatchStream.getBuf(), 0, blockPatchStream.getCount());
-                        if(blockPatchStream.getCount() > blockLength) {
-                            LOG.trace("Patch is longer than data");
-                        }
-                    } catch (InvalidHeaderException | CompressorException e) {
-                        throw new IOException(e);
-                    }
-                }
-                addFileHash(targetStream.getMessageDigest().digest(), path);
-            }
+            Diff.diff(source, target, new FileOutputStream(patchFile.toFile()), new SaisDiffSettings());
+
         } catch (IOException e) {
             addException(e);
+        } catch (InvalidHeaderException | CompressorException e) {
+            e.printStackTrace();
         }
     }
 

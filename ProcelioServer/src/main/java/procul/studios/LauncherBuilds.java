@@ -61,7 +61,7 @@ public class LauncherBuilds {
             if(!Files.isDirectory(osDir))
                 continue;
             OperatingSystem os = OperatingSystem.parse(osDir.getFileName().toString());
-            LOG.info("Launcher build " + os.getIndex() + ": "+osDir);
+            LOG.info("Launcher build " + os.getHeaderValue() + ": "+osDir);
             File[] fs = osDir.toFile().listFiles();
             if (fs == null || fs.length == 0)
                 LOG.error("Build for "+osDir.toFile()+" not found");

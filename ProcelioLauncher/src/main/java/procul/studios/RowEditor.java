@@ -3,10 +3,7 @@ package procul.studios;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
@@ -61,6 +58,19 @@ public class RowEditor extends BorderPane {
         b.setOnAction(ae);
         Text desc = new Text(description);
         grid.addRow(grid.getRowCount(), b, desc);
+    }
+
+    /**
+     * Add an unstyled row with a checkbox and description to the grid
+     * @param description The description (to the right of the box)
+     * @param ae The callback for when the box gets clicked
+     */
+    protected void addCheckboxRow(boolean startSet, String description, EventHandler<ActionEvent> ae) {
+        CheckBox cb = new CheckBox();
+        cb.setSelected(startSet);
+        cb.setOnAction(ae);
+        Text desc = new Text(description);
+        grid.addRow(grid.getRowCount(), cb, desc);
     }
 
     /**

@@ -59,29 +59,45 @@ public final class FileUtils {
     public static void extractInputstream(InputStream stream, Path targetDir) throws IOException {
         extractInputstream(stream, targetDir, null);
     }
+    public static File newFile(File destinationDir, ZipEntry zipEntry) throws IOException {
+        File destFile = new File(destinationDir, zipEntry.getName());
 
-    public static void extractInputstream(InputStream stream, Path targetDir, Consumer<Double> scrollingProgress) throws IOException {
-        byte[] buffer = new byte[1024];
-        double perFile = 0.01;
-        double stat = 0;
-        try (ZipInputStream zipStream = new ZipInputStream(stream)) {
-            ZipEntry entry = null;
-            while ((entry = zipStream.getNextEntry()) != null) {
-                stat += perFile;
-                if (stat > 1) stat = 0;
-                if (scrollingProgress != null)
-                    scrollingProgress.accept(stat);
-                String fileName = entry.getName();
-                Path newFile = targetDir.resolve(fileName);
-                Files.createDirectories(newFile.getParent());
-                try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(newFile))) {
-                    int len;
-                    while ((len = zipStream.read(buffer)) > 0) {
-                        out.write(buffer, 0, len);
-                    }
-                }
-            }
+        String destDirPath = destinationDir.getCanonicalPath();
+        String destFilePath = destFile.getCanonicalPath();
+
+        if (!destFilePath.startsWith(destDirPath + File.separator)) {
+            throw new IOException("Entry is outside of the target dir: " + zipEntry.getName());
         }
+
+        return destFile;
+    }
+    public static void extractInputstream(InputStream stream, Path targetDir, Consumer<Double> scrollingProgress) throws IOException {
+        double perFile = 0.005;
+        double stat = 0;
+        byte[] buffer = new byte[1024];
+        ZipInputStream zis = new ZipInputStream(stream);
+        ZipEntry zipEntry = zis.getNextEntry();
+        while (zipEntry != null) {
+            if (zipEntry.isDirectory()) {
+                zipEntry = zis.getNextEntry();
+                continue;
+            }
+            stat += perFile;
+            if (stat > 1) stat = 0;
+            if (scrollingProgress != null)
+                scrollingProgress.accept(stat);
+            File newFile = targetDir.resolve(zipEntry.getName()).toFile();
+            newFile.getParentFile().mkdirs();
+            FileOutputStream fos = new FileOutputStream(newFile);
+            int len;
+            while ((len = zis.read(buffer)) > 0) {
+                fos.write(buffer, 0, len);
+            }
+            fos.close();
+            zipEntry = zis.getNextEntry();
+        }
+        zis.closeEntry();
+        zis.close();
     }
 
     public static void copyRecursive(Path source, Path target) throws IOException {
