@@ -1,0 +1,5 @@
+If LauncherUpdater doesn't work (compiled on WSL), you can rebuild it.
+You might also need to chmod +x both it and/or the launch.sh file...
+
+[ REQUIRES G++ VERSION 8 FOR <filesystem> ]
+g++ -o ProcelioLauncher -std=c++17 -lstdc++fs constants.h updater.cpp
