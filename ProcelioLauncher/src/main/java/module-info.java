@@ -13,6 +13,7 @@ module ps.ProcelioLauncher {
     requires jdk.crypto.ec;
     requires net.harawata.appdirs;
     requires ant;
+    requires vcdiff.core;
     uses org.slf4j.spi.SLF4JServiceProvider;
     exports procul.studios;
 }

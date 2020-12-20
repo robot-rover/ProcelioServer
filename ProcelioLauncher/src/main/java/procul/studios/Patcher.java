@@ -1,8 +1,7 @@
 package procul.studios;
 
-import io.sigpipe.jbsdiff.InvalidHeaderException;
-import io.sigpipe.jbsdiff.Patch;
-import org.apache.commons.compress.compressors.CompressorException;
+import com.davidehrmann.vcdiff.VCDiffDecoder;
+import com.davidehrmann.vcdiff.VCDiffDecoderBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.delta.Build;
@@ -191,6 +190,8 @@ public class Patcher {
         LOG.info("Available patch bytes: " + delta.available());
         DeltaManifest packageManifest;
         boolean ok = true;
+        VCDiffDecoder decoder = VCDiffDecoderBuilder.builder().buildSimple();
+
         try (ZipInputStream zipStream = new ZipInputStream(delta)) {
             ZipEntry entry = zipStream.getNextEntry();
             if (!entry.getName().equals("manifest.json"))
@@ -234,8 +235,8 @@ public class Patcher {
                     readEntry(zipStream, readPatchStream);
 
                     try {
-                        Patch.patch(bytes, readPatchStream.getBuf(), Files.newOutputStream(toPatch));
-                    } catch (InvalidHeaderException | CompressorException e) {
+                        decoder.decode(bytes, readPatchStream.getBuf(), Files.newOutputStream(toPatch));
+                    } catch (Exception e) {
                         ok = false;
                         LOG.error("Patch Error", e);
                     }

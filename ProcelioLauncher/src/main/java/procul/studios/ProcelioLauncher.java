@@ -66,7 +66,7 @@ public class ProcelioLauncher extends Application {
     /**
      * Constant determines the version of the launcher build
      */
-    private static final Version launcherVersion = new Version(0, 2, 1);
+    private static final Version launcherVersion = new Version(0, 3, 0);
 
     /**
      * Constant determines the endpoint for the Procelio Backend

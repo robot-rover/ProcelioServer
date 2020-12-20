@@ -21,14 +21,14 @@ public class LicenseDisplayScene extends RowEditor {
     Button cancel;
     public LicenseDisplayScene(Runnable closeWindow) {
         this.closeWindow = closeWindow;
-        addTextRow("Procelio launcher copyright 2016-20 Sam O'Brien & Brennan Stein");
+        addTextRow("Procelio launcher copyright 2016-21 Sam O'Brien & Brennan Stein");
         addTextRow("Dependencies included in this binary distribution:");
         addButtonRow("Unirest-Java", "Used for API calls to server", this::unirest);
-        addButtonRow("JBSDiff", "Used for applying patches", this::jbsdiff);
         addButtonRow("AppDirs", "Cross-platform access to AppData", this::appdirs);
         addButtonRow("Apache Products", "commons.compress, ant", this::apache);
         addButtonRow("Gson", "Google JSON lib", this::gson);
         addButtonRow("SLF4J", "Java logging", this::slf4j);
+        addButtonRow("VCDiff", "Used for applying patches", this::vcdiff);
         addTextRow("* OpenJDK Java runtime, as built by jpackage tool");
 
         HBox buttons = new HBox();
@@ -79,40 +79,41 @@ public class LicenseDisplayScene extends RowEditor {
         } catch (IOException | URISyntaxException e) {
             e.printStackTrace();
         }
-       mit();
+       unirestlic();
     }
 
-    private void jbsdiff(ActionEvent ae) {
+    private void vcdiff(ActionEvent ae) {
         try {
-            Desktop.getDesktop().browse(new URI("https://github.com/malensek/jbsdiff"));
+            Desktop.getDesktop().browse(new URI( "https://github.com/ehrmann/vcdiff-java"));
         } catch (IOException | URISyntaxException e) {
             e.printStackTrace();
         }
-        FX.acceptLong("Unirest license", "", "Copyright (c) 2016, Colorado State University\n" +
-                "All rights reserved.\n" +
-                "\n" +
-                "Redistribution and use in source and binary forms, with or without modification,\n" +
-                "are permitted provided that the following conditions are met:\n" +
-                "\n" +
-                "1. Redistributions of source code must retain the above copyright notice, this\n" +
-                "   list of conditions and the following disclaimer.\n" +
-                "2. Redistributions in binary form must reproduce the above copyright notice,\n" +
-                "   this list of conditions and the following disclaimer in the documentation\n" +
-                "   and/or other materials provided with the distribution.\n" +
-                "\n" +
-                "This software is provided by the copyright holders and contributors \"as is\" and\n" +
-                "any express or implied warranties, including, but not limited to, the implied\n" +
-                "warranties of merchantability and fitness for a particular purpose are\n" +
-                "disclaimed. In no event shall the copyright holder or contributors be liable for\n" +
-                "any direct, indirect, incidental, special, exemplary, or consequential damages\n" +
-                "(including, but not limited to, procurement of substitute goods or services;\n" +
-                "loss of use, data, or profits; or business interruption) however caused and on\n" +
-                "any theory of liability, whether in contract, strict liability, or tort\n" +
-                "(including negligence or otherwise) arising in any way out of the use of this\n" +
-                "software, even if advised of the possibility of such damage.");
+        apache2();
     }
 
+
     private void mit() {
+        FX.acceptLong("MIT", "", "The MIT License\n" +
+                "\n" +
+                "Permission is hereby granted, free of charge, to any person obtaining\n" +
+                "a copy of this software and associated documentation files (the\n" +
+                "\"Software\"), to deal in the Software without restriction, including\n" +
+                "without limitation the rights to use, copy, modify, merge, publish,\n" +
+                "distribute, sublicense, and/or sell copies of the Software, and to\n" +
+                "permit persons to whom the Software is furnished to do so, subject to\n" +
+                "the following conditions:\n" +
+                "\n" +
+                "The above copyright notice and this permission notice shall be\n" +
+                "included in all copies or substantial portions of the Software.\n" +
+                "\n" +
+                "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\n" +
+                "EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\n" +
+                "MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND\n" +
+                "NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE\n" +
+                "LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION\n" +
+                "OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION\n" +
+                "WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.");
+    } private void unirestlic() {
         FX.acceptLong("MIT", "", "The MIT License\n" +
                 "\n" +
                 " * Copyright for portions of unirest-java are held by Kong Inc (c) 2013-2019.\n" +
