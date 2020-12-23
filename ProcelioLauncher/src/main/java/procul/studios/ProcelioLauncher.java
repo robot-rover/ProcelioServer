@@ -66,7 +66,7 @@ public class ProcelioLauncher extends Application {
     /**
      * Constant determines the version of the launcher build
      */
-    private static final Version launcherVersion = new Version(0, 3, 0);
+    private static final Version launcherVersion = new Version(0, 3, 4);
 
     /**
      * Constant determines the endpoint for the Procelio Backend
@@ -200,7 +200,7 @@ public class ProcelioLauncher extends Application {
         try {
             Version newestLauncher = new Version(wrapper.getConfig().launcherVersion);
             LOG.info("Launcher Versions - Current: {}, Latest: {}", launcherVersion, newestLauncher);
-            launcherOutOfDate = newestLauncher.compareTo(launcherVersion) > 0;
+            launcherOutOfDate = newestLauncher.compareTo(launcherVersion) != 0;
             if (launcherOutOfDate) {
                 LOG.warn("Launcher is out of date - Current: {}, Latest: {}", launcherVersion, newestLauncher);
             }

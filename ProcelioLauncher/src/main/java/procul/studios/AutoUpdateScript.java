@@ -17,6 +17,7 @@ import javafx.scene.layout.HBox;
 import javafx.util.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import procul.studios.util.OperatingSystem;
 
 import java.awt.*;
 import java.io.*;
@@ -37,12 +38,13 @@ import static procul.studios.ProcelioLauncher.backendEndpoint;
 
 public class AutoUpdateScript extends RowEditor {
     private static final Logger LOG = LoggerFactory.getLogger(AutoUpdateScript.class);
-
+    private EndpointWrapper wrapper;
     AutoUpdate au;
     Application ap;
 
     public AutoUpdateScript(Application app, EndpointWrapper wrapper, Consumer<Boolean> visibleCallback, Consumer<String> messageCallback, Runnable closeWindow) {
         ap = app;
+        this.wrapper = wrapper;
         LOG.info("" + wrapper.osHeaderValue);
         switch (wrapper.osHeaderValue) {
             case WINDOWS:
@@ -143,24 +145,34 @@ public class AutoUpdateScript extends RowEditor {
             } catch (InterruptedException | ExecutionException e) {
                 e.printStackTrace();
             }
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Update launcher");
-            alert.setHeaderText("Close launcher and run " + name);
             Path updateDest = Path.of(LauncherUtilities.fixSeparators(au.installPath.get(), au.wrapper)).resolve(name);
-            javafx.scene.control.Label label = new Label("file located at\n" + updateDest);
-            label.setWrapText(true);
-            alert.getDialogPane().setContent(label);
-            ButtonType buttonTypeOne = new ButtonType("OK");
-            alert.getButtonTypes().setAll(buttonTypeOne);
-            Optional<ButtonType> result = alert.showAndWait();
-            try {
-                Desktop.getDesktop().open(updateDest.getParent().toFile());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            try {
-                ap.stop();
-            } catch (Exception e) {
+            if (wrapper.osHeaderValue == OperatingSystem.WINDOWS) {
+                try {
+                    var process = Runtime.getRuntime().exec("cmd /c start \"\" try.bat");
+                    process.waitFor();
+                    System.exit(0);
+                } catch (IOException | InterruptedException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Update launcher");
+                alert.setHeaderText("Close launcher and run " + name);
+                javafx.scene.control.Label label = new Label("file located at\n" + updateDest);
+                label.setWrapText(true);
+                alert.getDialogPane().setContent(label);
+                ButtonType buttonTypeOne = new ButtonType("OK");
+                alert.getButtonTypes().setAll(buttonTypeOne);
+                Optional<ButtonType> result = alert.showAndWait();
+                try {
+                    Desktop.getDesktop().open(updateDest.getParent().toFile());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    ap.stop();
+                } catch (Exception e) {
+                }
             }
             System.exit(0);
         });
@@ -184,9 +196,11 @@ class AutoUpdateWindows extends AutoUpdate {
 
     public String ready() {
         try {
+            // Check if we need admin permissions or not - make a junk file
             Path path = Path.of(LauncherUtilities.fixSeparators(this.installPath.get(), wrapper)).resolve("_231232_TestFile_jldfnf");
             Files.createFile(path);
             Files.delete(path);
+            LOG.info("Admin permissions not required - " + path);
             return super.ready();
         } catch (IOException e) {
             // Couldn't create... Guess we need admin

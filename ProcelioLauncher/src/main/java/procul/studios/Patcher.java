@@ -60,11 +60,8 @@ public class Patcher {
      */
     public Build updateBuild() throws IOException, HashMismatchException {
         PatchList gameStatus = wrapper.checkForUpdates(currentBuild.getVersion(), settings.useDevBuilds);
-        // if the versions match, the game is up to date
-        if (gameStatus.upToDate) {
-            LOG.info("All up to date");
-            return currentBuild;
-        }
+        if (settings.useDevBuilds && gameStatus.update_to.major == 0 && gameStatus.update_to.minor == 0 && gameStatus.update_to.patch == 0)
+            gameStatus = wrapper.checkForUpdates(currentBuild.getVersion(), false);
 
         if (wasInterrupted()) {
             updateVisibleCallback.accept(true);
@@ -76,6 +73,12 @@ public class Patcher {
             updateStatusCallback.accept("Rollback successful. Re-attempting update...");
 
             try { Thread.sleep(1000); } catch (Exception ignored) { /* Purely for visibility */}
+        }
+
+        // if the versions match, the game is up to date
+        if (gameStatus.upToDate) {
+            LOG.info("All up to date");
+            return currentBuild;
         }
 
         long newVersionSize = wrapper.getFileSize(backendEndpoint + "/game/build/" + gameStatus.update_to.toString());
@@ -190,7 +193,10 @@ public class Patcher {
         LOG.info("Available patch bytes: " + delta.available());
         DeltaManifest packageManifest;
         boolean ok = true;
-        VCDiffDecoder decoder = VCDiffDecoderBuilder.builder().buildSimple();
+
+
+        int ONE_GB = 1024 * 1024 * 1024;
+        VCDiffDecoder decoder = VCDiffDecoderBuilder.builder().withMaxTargetFileSize(ONE_GB).withMaxTargetWindowSize(ONE_GB).buildSimple();
 
         try (ZipInputStream zipStream = new ZipInputStream(delta)) {
             ZipEntry entry = zipStream.getNextEntry();
@@ -231,11 +237,13 @@ public class Patcher {
                     Path sourcePath = Paths.get(toPatch.toString() + ".old" + timestamp);
                     Files.move(toPatch, sourcePath);
                     byte[] bytes = Files.readAllBytes(sourcePath);
-                    ByteBufferOutputStream readPatchStream = new ByteBufferOutputStream();
+                    ByteArrayOutputStream readPatchStream = new ByteArrayOutputStream();
                     readEntry(zipStream, readPatchStream);
 
+                    updateStatusCallback.accept("Patching " + packageManifest.source + " -> " + packageManifest.target +"("+newFileName+" - " + formatDataSize(bytes.length)+")");
+
                     try {
-                        decoder.decode(bytes, readPatchStream.getBuf(), Files.newOutputStream(toPatch));
+                        decoder.decode(bytes, readPatchStream.toByteArray(), Files.newOutputStream(toPatch));
                     } catch (Exception e) {
                         ok = false;
                         LOG.error("Patch Error", e);
@@ -326,13 +334,14 @@ public class Patcher {
             exclude.add(gameDir.resolve("launcher.log").toFile());
             FileUtils.deleteRecursive(gameDir.toFile(), exclude);
         }
-        updateVisibleCallback.accept(true);
-        updateStatusCallback.accept("Downloading Build /launcher/build");
+
         InputStream game = null;
         try {
             GameVersion gv = wrapper.getCurrentVersion(devBuild);
             if (gv ==null)
                 throw new IOException("Failed to get current version");
+            updateVisibleCallback.accept(true);
+            updateStatusCallback.accept("Downloading Build " + gv.toString());
 
             long size = wrapper.getFileSize(backendEndpoint + "/game/build/" + gv.toString());
             game = wrapper.getFile(backendEndpoint + "/game/build/" + gv.toString(), updateProgressCallback);

@@ -9,7 +9,7 @@ WINDOWS
 --> This is the "upload to server / standalone" build
 2) Run Inno to generate the ProcelioLauncherInstaller.exe in WinInstaller
 
-LINUX
+LINUX [BRENNAN - USE WSL DEB, NOT UBUNTU]
 - Run gradle makeImage
 - Copy in updater and constants files to folder
 - Copy in launch.sh file to top level

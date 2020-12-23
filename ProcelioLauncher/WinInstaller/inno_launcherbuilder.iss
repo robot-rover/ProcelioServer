@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "ProcelioLauncher"
-#define MyAppVersion "0.2.1"
+#define MyAppVersion "0.3.0"
 #define MyAppPublisher "Procul Studios"
 #define MyAppURL "https://www.proceliogame.com"
 #define MyAppExeName "ProcelioLauncher.exe"
