@@ -550,7 +550,9 @@ class FasterVCDiffDeltaFileWindow {
     // Executes a single COPY or ADD instruction, appending data to
     // parent->decodedTarget().
     private void copyBytes(ByteBuffer buffer, int size) {
-        parent.decodedTarget().write(buffer.array(), buffer.position(), size);
+        byte[] dst = new byte[size];
+        buffer.get(dst);
+        parent.decodedTarget().writeBytes(dst);
     }
 
     // Executes a single RUN instruction, appending data to

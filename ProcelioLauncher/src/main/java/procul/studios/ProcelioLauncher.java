@@ -66,7 +66,7 @@ public class ProcelioLauncher extends Application {
     /**
      * Constant determines the version of the launcher build
      */
-    private static final Version launcherVersion = new Version(0, 3, 4);
+    private static final Version launcherVersion = new Version(0, 3, 7);
 
     /**
      * Constant determines the endpoint for the Procelio Backend
@@ -88,7 +88,6 @@ public class ProcelioLauncher extends Application {
      */
     static Path gameDir;
     static final String defaultGameDir = System.getProperty("user.home") + File.separator + ".ProcelioGame";
-    static boolean devBuilds = false;
 
     private static Path readmeFile;
 
@@ -147,7 +146,6 @@ public class ProcelioLauncher extends Application {
             settings.acceptedReadme = false;
         if(settings.installDir == null)
             settings.installDir = defaultGameDir;
-
         loadPaths();
         wrapper = new EndpointWrapper();
 
@@ -159,6 +157,7 @@ public class ProcelioLauncher extends Application {
                 if (downloadPath.endsWith("/"+AutoUpdate.downloadFolder))
                     downloadPath = downloadPath.substring(0, downloadPath.length() - AutoUpdate.downloadFolder.length() - 1 /* '/' */);
                 AutoUpdate.DoUpdate(downloadPath, is, wrapper, null);
+                is.close();
             } catch (IOException | HashMismatchException e) {
                 e.printStackTrace();
             }
@@ -182,6 +181,7 @@ public class ProcelioLauncher extends Application {
 
     public void saveSettings() throws IOException {
         String json = gson.toJson(settings);
+        LOG.info("Saving settings: {}", json);
         Files.createDirectories(settingsFile.getParent());
         Files.write(settingsFile, json.getBytes(StandardCharsets.UTF_8), StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.CREATE);
 
@@ -498,7 +498,7 @@ public class ProcelioLauncher extends Application {
 
             // if a manifest doesn't exist or isn't valid, download a fresh install of the game and then launch
             if (manifest == null || manifest.getManifest().exec == null || manifest.getManifest().version == null) {
-                GameVersion gv = wrapper.getCurrentVersion(devBuilds);
+                GameVersion gv = wrapper.getCurrentVersion(settings.useDevBuilds);
 
                 long newVersionSize = wrapper.getFileSize(backendEndpoint + "/game/build/" + gv.toString());
                 String persistent = "Install will require " + Patcher.formatDataSize(newVersionSize) + " of disk space";
@@ -507,7 +507,7 @@ public class ProcelioLauncher extends Application {
                 if (!memoryOK)
                     throw new CancellationException();
                 // if no patch path is available, only option is a fresh bui
-                manifest = patcher.freshBuild(devBuilds);
+                manifest = patcher.freshBuild(settings.useDevBuilds);
                 launchFile(gameDir.resolve(manifest.getManifest().exec));
                 return;
             }
@@ -583,8 +583,8 @@ public class ProcelioLauncher extends Application {
         boolean isExecutable = executable.toFile().setExecutable(true, false);
         LOG.info("Launching Procelio from {} - R:{}, X:{}", executable, isReadable, isExecutable);
 
-        try {
-            LOG.info(Files.newDirectoryStream(executable.getParent()).toString());
+        try (var strm = Files.newDirectoryStream(executable.getParent())) {
+            LOG.info(strm.toString());
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -593,7 +593,7 @@ public class ProcelioLauncher extends Application {
             LOG.info("Running {} in directory {} - Exists: {}", gameDir.relativize(executable), gameDir, Files.exists(executable));
             List<String> concatArgs = new ArrayList<>();
             concatArgs.add(executable.normalize().toString());
-            concatArgs.addAll(Arrays.asList(wrapper.getLauncherArguments(devBuilds)));
+            concatArgs.addAll(Arrays.asList(wrapper.getLauncherArguments(settings.useDevBuilds)));
             LOG.info("Launching with args: {}", concatArgs);
             game = new ProcessBuilder(concatArgs).directory(gameDir.toFile()).redirectErrorStream(true).start();
             Platform.runLater(() -> primaryStage.setIconified(true));

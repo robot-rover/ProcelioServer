@@ -334,8 +334,9 @@ class AutoUpdate {
 
     public String execute() {
         try {
-            InputStream s = wrapper.getFile(backendEndpoint + "/launcher/build");
-            return execute(s);
+            try (InputStream s = wrapper.getFile(backendEndpoint + "/launcher/build")) {
+                return execute(s);
+            }
         } catch (Exception e) {
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);

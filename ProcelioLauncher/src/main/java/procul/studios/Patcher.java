@@ -2,6 +2,7 @@ package procul.studios;
 
 import com.davidehrmann.vcdiff.VCDiffDecoder;
 import com.davidehrmann.vcdiff.VCDiffDecoderBuilder;
+import com.davidehrmann.vcdiff.procelio.FasterVCDiffDecoderBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import procul.studios.delta.Build;
@@ -112,6 +113,7 @@ public class Patcher {
                 InputStream input = wrapper.getFile(backendEndpoint + "/game/patch/" + patch, updateProgressCallback);
                 if (!applyDelta(input))
                     return freshBuild(settings.useDevBuilds);
+                input.close();
             }
         } catch (IOException | HashMismatchException e) {
             updateVisibleCallback.accept(false);
@@ -196,7 +198,7 @@ public class Patcher {
 
 
         int ONE_GB = 1024 * 1024 * 1024;
-        VCDiffDecoder decoder = VCDiffDecoderBuilder.builder().withMaxTargetFileSize(ONE_GB).withMaxTargetWindowSize(ONE_GB).buildSimple();
+        var decoder = FasterVCDiffDecoderBuilder.builder().withMaxTargetFileSize(ONE_GB).withMaxTargetWindowSize(ONE_GB).buildSimple();
 
         try (ZipInputStream zipStream = new ZipInputStream(delta)) {
             ZipEntry entry = zipStream.getNextEntry();
@@ -242,12 +244,13 @@ public class Patcher {
 
                     updateStatusCallback.accept("Patching " + packageManifest.source + " -> " + packageManifest.target +"("+newFileName+" - " + formatDataSize(bytes.length)+")");
 
-                    try {
-                        decoder.decode(bytes, readPatchStream.toByteArray(), Files.newOutputStream(toPatch));
+                    try (var outStream = Files.newOutputStream(toPatch)) {
+                        decoder.decode(bytes, readPatchStream.toByteArray(), outStream);
                     } catch (Exception e) {
                         ok = false;
                         LOG.error("Patch Error", e);
                     }
+                    readPatchStream.close();
                 } else {
                     Path newFile = gameDir.resolve(fileName);
                     Files.createDirectories(newFile.getParent());
@@ -347,6 +350,7 @@ public class Patcher {
             game = wrapper.getFile(backendEndpoint + "/game/build/" + gv.toString(), updateProgressCallback);
             updateStatusCallback.accept("Unpacking build");
             FileUtils.extractInputstream(game, gameDir, updateProgressCallback);
+            game.close();
         } catch (IOException | HashMismatchException | NullPointerException e) {
             updateVisibleCallback.accept(false);
             throw e;

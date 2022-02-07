@@ -25,6 +25,7 @@ public class ConfigEditor extends RowEditor {
         this.settings = settings;
         this.closeWindow = closeWindow;
         this.launcher = launcher;
+        this.useDevBuilds = settings.useDevBuilds;
 
         installDir = addDirectoryRow("Install Directory", settings.installDir);
         addButtonRow("Modify Install", "Change the installed game (e.g. uninstall)", this::modifyInstall);
